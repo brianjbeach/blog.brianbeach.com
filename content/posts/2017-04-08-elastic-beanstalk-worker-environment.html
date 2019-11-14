@@ -1,0 +1,29 @@
+---
+layout: post
+title: Elastic Beanstalk Worker Environment Timeouts
+date: '2017-04-08T22:36:00.000-04:00'
+author: Brian
+tags: 
+modified_time: '2017-04-08T15:55:13.599-04:00'
+thumbnail: https://3.bp.blogspot.com/-SKsLwkbwetM/WCvMPSk4vAI/AAAAAAACiPk/XtcGAJgtUvAqZzgOED0MhFAQuF69lNUnACLcB/s72-c/SQSD.gif
+blogger_id: tag:blogger.com,1999:blog-5050074367798755574.post-693992916683874431
+blogger_orig_url: http://blog.brianbeach.com/2016/11/elastic-beanstalk-worker-environment.html
+---
+
+I have been working with Worker Environments in AWS Elastic Beanstalk. I found all the timeouts confusing at first, so I share my findings here.<br />
+<br />
+The instances in your Worker Environment have a demon that reads messages from an SQS Queue. That queue has a <b>Default Visibility Timeout</b> and <b>Message Retention Period</b>. In addition, the Elastic Beanstalk Worker Configuration has its own <b>Visibility Timeout</b> and <b>Retention Period</b> in addition to a <b>Connection Timeout</b>, <b>Error Visibility Timeout&nbsp;</b>and <b>Inactivity Timeout</b>. <br />
+<br />
+The process works like this (see diagram below). The SQS demon polls the queue. When it reads a message, it sets the <b>Visibility Timeout </b>overriding the queue's <b>Default Visibility Timeout</b>. The demon then checks if the message is older than the <b>Retention Period</b>. If it is, it explicitly deletes the message, effectively overriding the queue's <b>Message Retention Period</b>. In other words, the Worker Environment's <b>Visibility Timeout </b>and <b>Retention Period</b> replace the queue's&nbsp;<b>Default Visibility Timeout</b>&nbsp;and&nbsp;<b>Message Retention&nbsp;Period</b> respectively.<br />
+<br />
+<div style="text-align: center;">
+&nbsp;<a href="https://3.bp.blogspot.com/-SKsLwkbwetM/WCvMPSk4vAI/AAAAAAACiPk/XtcGAJgtUvAqZzgOED0MhFAQuF69lNUnACLcB/s1600/SQSD.gif" imageanchor="1"><img border="0" height="396" src="https://3.bp.blogspot.com/-SKsLwkbwetM/WCvMPSk4vAI/AAAAAAACiPk/XtcGAJgtUvAqZzgOED0MhFAQuF69lNUnACLcB/s400/SQSD.gif" width="400" /></a></div>
+<br />
+Assuming the demon finds a message that has not exceeded the <b>Retention Period</b>, it does an HTTP POST with the message in the body to your application which should be listening on 127.0.0.1:80. If the demon cannot create a connection to your application within the <b>Connection Timeout</b> it sets the message's visibility to the <b>Error Visibility Timeout</b>. The message will be retied after the <b>Error Visibility Timeout</b>.<br />
+<br />
+If the demon can create a connection, it waits for a response. If the Inactivity Timeout is exceeded before the demon receives a response, it aborts the request and sets the message's Visibility to the&nbsp;<b>Error Visibility Timeout</b>. The message will be retied after the&nbsp;<b>Error Visibility Timeout</b>.<br />
+<br />
+Note that your entire run does need to complete within the Inactivity Timeout (max 30 mins). Each time your application sends data the counter is reset. In other words you can hold the HTTP connection open for longer than 30 minutes by streaming data back in small increments. You could extend this up to the Visibility Timeout (max 12 hours). While SQS allows you to reset the visibility timeout, Elastic Beanstalk does provide the receipt handle to your code.<br />
+<br />
+At this point we have addressed all seven of the timeouts you can configure (2 on the queue and 5 in worker configuration), but we came this far so let's see this through to completion. If the demon receives a response from your application, it checks the return code. If the response indicates success (i.e. 200) it explicitly deletes the message from SQS and the process completes. If the response indicates failure, the demon sets the message's Visibility to the&nbsp;<b>Error Visibility Timeout</b>. The message will be retied after the&nbsp;<b>Error Visibility Timeout</b>.<br />
+<br />

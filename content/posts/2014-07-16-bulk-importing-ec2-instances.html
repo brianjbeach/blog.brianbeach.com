@@ -1,0 +1,85 @@
+---
+layout: post
+title: Bulk Importing EC2 Instances
+date: '2014-07-16T20:09:00.002-04:00'
+author: Brian
+tags:
+- EC2
+- AWS
+- Cloud
+modified_time: '2014-07-18T18:02:23.494-04:00'
+blogger_id: tag:blogger.com,1999:blog-5050074367798755574.post-5276949189319666796
+blogger_orig_url: http://blog.brianbeach.com/2014/07/bulk-importing-ec2-instances.html
+---
+
+I have been testing a a preview of a new PowerShell command, Import-EC2Instance, that will be added to the <a href="http://aws.amazon.com/powershell/">AWS PowerShell API</a> next week. &nbsp;The new command allows you to import a VM from VMware or Hyper-V. &nbsp;I covered this in my book, but at the time the functionality was not available in PowerShell and I had to use the Java API. <br />
+<br />
+While the new command will upload and convert your VM, you can also do the upload and convert independently. &nbsp;This left me wondering if I could use the <a href="http://aws.amazon.com/importexport/">AWS Import/Export Service</a>&nbsp;to ship a an external drive full of VMDK files and skip the upload process. &nbsp;After some testing, it turns out you can. &nbsp;Depending on the number of VMs you plan to migrate and the speed of your internet connection, this may be a great alternative. <br />
+<br />
+Let me clarify that I am speaking of two similarly named services here. &nbsp;EC2 Import is used to convert a VMDK (or VHD) into an EC2 Instance. &nbsp;AWS Import allows you to ship large amounts of data using removable media. <br />
+<br />
+Normally, the EC2 Import process works like this. &nbsp;First, the PowerShell module breaks up the VMDK into 10MB chucks and uploads it to an S3 bucket. &nbsp;Next, it generates a manifest file that describes how to put the pieces back together, and uploads that to S3. &nbsp;Then, it calls the ec2-import-instance REST API passing a reference to the manifest. &nbsp;Finally, the import service uses the Manifest to reassemble the VMDK file and convert it into an EC2 instance. <br />
+<br />
+The large file is broken into chunks to make the upload easier and allow it recover from a connection error (retrying a part rather than the entire file.) &nbsp;With the AWS Import/Service there is no need to break up the file. &nbsp;Note that S3 supports objects up to 5TB and EC2 volumes can only be 1TB. &nbsp;So there is no reason not to upload the VMDK as a single file.<br />
+<br />
+So, all we need to do is create the manifest file and call the E2 Import API passing a reference to the manifest file. &nbsp;If you have ever looked at one of these manifest files, they can look really daunting. &nbsp;But, with only a single part, it's actually really simple. &nbsp;Note that all of the URLs are pre-signed so the Import Service can access your VMDK file without granting IAM permissions to the import service.<br />
+<br />
+<pre class="brush: powershell;">$Bucket = 'MyBucket'
+$VolumeKey = 'WIN2012/Volume.vmdk'
+$VolumeSize = 20
+
+#We need to know how big the file is to create the Manifest
+$FileSize = (Get-S3Object -BucketName $Bucket -Key $VolumeKey).Size
+$ByteRangeEnd = $FileSize - 1 #Byte Range is zero based
+
+#Let's create a few pre-signed URLs for the import engine
+$ManifestKey = "$VolumeKey.Manifest.xml"
+$SelfDestructURL = Get-S3PreSignedURL -BucketName $Bucket -Key $ManifestKey -Expires (Get-Date).AddDays(7) -Protocol HTTPS -Verb GET
+$HeadURL = Get-S3PreSignedURL -BucketName $Bucket -Key $VolumeKey -Expires (Get-Date).AddDays(7) -Protocol HTTPS -Verb HEAD
+$GetURL = Get-S3PreSignedURL -BucketName $Bucket -Key $VolumeKey -Expires (Get-Date).AddDays(7) -Protocol HTTPS -Verb GET
+$DeleteURL = Get-S3PreSignedURL -BucketName $Bucket -Key $VolumeKey -Expires (Get-Date).AddDays(7) -Protocol HTTPS -Verb DELETE
+
+#The URLs need to be HTML encoded to write into the XML document
+Add-Type -AssemblyName System.Web
+$SelfDestructURL = [System.Web.HttpUtility]::HtmlEncode($SelfDestructURL)
+$HeadURL = [System.Web.HttpUtility]::HtmlEncode($HeadURL)
+$GetURL = [System.Web.HttpUtility]::HtmlEncode($GetURL)
+$DeleteURL = [System.Web.HttpUtility]::HtmlEncode($DeleteURL)
+
+#Create a Manifest file with one enourmous part
+$Manifest = @"
+&lt;manifest&gt;
+    &lt;version&gt;2010-11-15&lt;/version&gt;
+    &lt;file-format&gt;VMDK&lt;/file-format&gt;
+    &lt;importer&gt;
+        &lt;name&gt;ec2-upload-disk-image&lt;/name&gt;
+        &lt;version&gt;1.0.0&lt;/version&gt;
+        &lt;release&gt;2010-11-15&lt;/release&gt;
+    &lt;/importer&gt;
+    &lt;self-destruct-url&gt;$SelfDestructURL&lt;/self-destruct-url&gt;
+    &lt;import&gt;
+        &lt;size&gt;$FileSize&lt;/size&gt;
+        &lt;volume-size&gt;20&lt;/volume-size&gt;
+        &lt;parts count="1"&gt;
+            &lt;part index="0"&gt;
+                &lt;byte-range end="$ByteRangeEnd" start="0"&gt;
+                &lt;key&gt;$VolumeKey&lt;/key&gt;
+                &lt;head-url&gt;$HeadURL&lt;/head-url&gt;
+                &lt;get-url&gt;$GetURL&lt;/get-url&gt;
+                &lt;delete-url&gt;$DeleteURL&lt;/delete-url&gt;
+            &lt;/byte-range&gt;&lt;/part&gt;
+        &lt;/parts&gt;
+    &lt;/import&gt;
+&lt;/manifest&gt;
+"@
+
+#Upload the manifest file to S3
+Write-S3Object -BucketName $Bucket -Content $Manifest -Key $ManifestKey
+
+#Kick off an import task using the new manifest file
+$Task = Import-EC2Instance -BucketName $Bucket -ManifestFileKey $ManifestKey -InstanceType m1.large -Architecture x86_64 -Platform Windows
+</pre>
+<br />
+Obviously there is room for improvement here. &nbsp;You could import directly to a VPC, support Linux instances, or use the Import-Ec2Volume command to import additional (non-boot) volumes. &nbsp;Hopefully this is good starting point. <br />
+<br />
+Note that prerequisites for the EC2 Import still apply. &nbsp;For example, you must convert the VMDK files to an OVF before shipping. 

@@ -1,0 +1,373 @@
+---
+layout: post
+title: Enforcing a Squid Access Policy for Amazon S3 and Yum
+date: '2015-02-19T15:15:00.000-05:00'
+author: Brian
+tags: 
+modified_time: '2015-10-24T15:18:06.774-04:00'
+blogger_id: tag:blogger.com,1999:blog-5050074367798755574.post-7745585727392901298
+blogger_orig_url: http://blog.brianbeach.com/2015/02/enforcing-squid-access-policy-for.html
+---
+
+<p style="text-align: center;color: red;">NOTE: This article is reposted from the AWS Site. The original is located <a href="https://aws.amazon.com/articles/6884321864843201">here</a>.</p>
+
+<p>In this article, we will set up an example situation showing how to use the open source Squid proxy to control access to Amazon Simple Storage Service (S3) from within an Amazon Virtual Private Cloud (VPC). First, you will configure Squid to allow access to Linux Yum repositories. Next, you will configure Squid to restrict access to a list of approved Amazon S3 buckets. Then, you will configure Squid to direct traffic based on the URL, sending some requests to an Internet gateway (IGW) and other traffic to a virtual private gateway (VGW). Finally, you will explore options for making Squid highly available.
+</p>
+
+<p>In our example, Alice is a Chief Technology Officer (CTO) at a small consulting firm.  Despite its small size, her company has many high-profile customers, and Alice has worked hard to gain their trust.  Alice employs a set of strict firewall policies and has deployed numerous security appliances over the past few years. </p>
+
+<p>As the company begins to migrate applications to the cloud, Alice's team is discussing how to implement similar polices using Amazon Web Services (AWS).  The first order of business is blocking access to the Internet.  Developers should not be able to download files from the Internet except for a few approved scenarios.  These scenarios include accessing Yum repositories to update Amazon Linux, and using AWS services such as Amazon S3.  Alice plans to implement this policy by using an IP address restriction in an Amazon Elastic Compute Cloud (EC2) security group.</p>
+
+<p>Alice finds numerous posts in the AWS forums from people asking for the IP address ranges of the Yum repositories and Amazon S3. However, Amazon does not publish this list.  Why?  In the cloud, resources are highly elastic.  Applications grow and shrink in response to demand. An IP address assigned to one application today might be assigned to another application tomorrow.  </p>
+
+<p>As applications expand and contract, instances are added and removed, and the Domain Name Service (DNS) is constantly updated with new IP addresses.  In the cloud, you cannot rely on IP address-based security rules; therefore, you must base security policies on domain names because they will not change as the application scales.  However, Amazon EC2 security groups and network access control lists (ACLs) do not support rules based on domain names.  Alice needs to find another solution to implement her security policy.</p>  
+<h2>Deploying and Configuring Squid</h2>
+
+<p>Alice decides to use Squid, an open source web proxy, to implement her policy. Squid will allow access to an approved list of services, but deny all other Internet access.   (Note that Alice chose Squid, but there are numerous solutions that she could have chosen.)</p>
+
+<p>She begins by creating the VPC shown in Figure 1.</p>
+ 
+<img src="https://awsmedia.s3.amazonaws.com/articles/amazon-s3-proxy-squid/figure-1.png">
+
+<p>Figure 1 - VPC configured to allow Internet access through a Squid proxy</p>
+
+<p>As shown in Figure 1, Alice wants to block direct access to the Internet from the application instances.  Instead, application instances must access the Internet through the Squid proxy. To ensure that all application instances use the proxy, Alice creates a new network ACL for the Application Subnet with the rules shown in the table in Figure 2.</p>  
+
+<p>Note that AWS offers both security groups and network ACLs to secure your application.  A security group is applied to an instance; a network ACL is applied to the entire subnet.  Alice uses a network ACL to ensure that the rules apply to all instances deployed in the application subnet.  For more information about security groups and network ACLs see the <a href="http://docs.aws.amazon.com/AmazonVPC/latest/UserGuide/VPC_Security.html">Amazon VPC documentation.</a></p>
+
+<img src="https://awsmedia.s3.amazonaws.com/articles/amazon-s3-proxy-squid/figure-2.png">
+ 
+<p>Figure 2: The application subnet ACL</p>
+
+<p>The ACL in Figure 2 allows HTTP/S within the VPC (rules 100 and 101), but blocks HTTP/S to the Internet (rules 200 and 201).  Therefore, the only way for instances in the application subnet to get access to the Internet is through the Squid proxy.</p>  
+
+<p>Note that because the application instances access the Internet through the proxy, the application subnet can be private.   A private subnet does not have a route to the Internet.  For more information about public and private subnets, see the <a href="http://docs.aws.amazon.com/AmazonVPC/latest/UserGuide/VPC_Subnets.html">VPC documentation.</a></p>
+
+<p>Next, Alice launches a new Amazon Linux AMI (Amazon Machine Image) in the DMZ subnet and assigns it an Elastic IP address.  Then she installs Squid using the following commands. </p>
+
+<pre class="brush: text;">sudo yum update -y
+sudo yum install -y squid</pre>
+
+<p>After she installs Squid, she begins to configure it.  The configuration is stored in a text file located at /etc/squid/squid.conf.  Alice uses vim to edit the file. </p> 
+
+<pre class="brush: text;">sudo vim /etc/squid/squid.conf</pre>
+
+<p>Squid uses rules, called ACLs, to identify traffic.  Do not confuse Squid's ACLs with the Amazon EC2 network ACLs we created above.  The first rule Alice encounters is src used to identify traffic by the source IP address of a request.  In other words, the proxy will only allow requests from these addresses.  By default, Squid will allow requests from any private address.  This is the default configuration:</p>
+
+
+<pre class="brush: text;">acl localnet src 10.0.0.0/8     
+acl localnet src 172.16.0.0/12  
+acl localnet src 192.168.0.0/16 
+acl localnet src fc00::/7       
+acl localnet src fe80::/10  </pre>    
+
+<p>Alice wants to further limit access to only include instances within the VPC, so she deletes these rules and creates a single rule that allows requests from 10.1.0.0/16, the Classless Inter-Domain Routing (CIDR) range of her VPC.</p>
+
+
+<pre class="brush: text;">acl localnet src 10.1.0.0/16   #Only allow requests from within the VPC</pre>     
+
+<p>With only the source defined, Squid will allow access to any URL.  This is a good time to test.  Alice saves her changes and starts the Squid daemon.</p>
+
+
+<pre class="brush: text;">$ sudo service squid start</pre>
+
+<p>She opens an SSH session to one of the application servers and configures it to use the proxy.</p>
+
+
+<pre class="brush: text;">$ export http_proxy=http://10.1.1.10:3128
+$ export https_proxy=http://10.1.1.10:3128
+$ export no_proxy="169.254.169.254"</pre>
+
+<p>There are a few important things you need to know about the prior command:</p>
+<ul>
+<li>The proxy configuration used here is only valid for the current session.  This is fine for testing, but to persist these entries you should add them to /etc/profile.d/proxy.sh</li>
+<li>Most, but not all, applications will use these environment variables.  Check the documentation of your application for details on configuring a proxy server.</li>
+<li>Squid listens on port 3128 by default. You can change the port in the squid.conf file.</li>
+<li>169.254.169.254 is the Amazon EC2 metadata service.  We are excluding this because we want our instances to hit the metadata service directly.  If we proxy these requests, the metadata service will return information about the proxy instance rather than the instance that made the request</li>
+</ul>     
+
+<p>At this point the proxy will allow access to any URL.  To ensure everything is working, Alice uses curl to load www.google.com.</p>
+
+<pre class="brush: text;">$ curl -I http://www.google.com 
+HTTP/1.1 200 OK 
+...
+Via: 1.0 ip-10-1-1-10 (squid/3.1.10)
+</pre>
+
+<p>The response code of 200 indicates that everything is configured as expected, and the Via header indicates that the application instance is using the proxy to access the Internet.  Everything appears to working as expected.</p>
+
+<h2>Granting Access to Yum</h2>
+
+<p>With Squid installed and working, Alice continues to implement her security policy. She moves on to the Yum repository.   As shown in Figure 3, Alice wants to allow access to the Yum repository, and deny all other Internet access.</p>
+
+<img src="https://awsmedia.s3.amazonaws.com/articles/amazon-s3-proxy-squid/figure-3.png">
+ 
+<p>Figure 3 - Squid denying access to everything except the Yum repository</p>
+
+<p>Alice returns to the Squid instance and opens the Squid configuration file.</p>
+
+<pre class="brush: text;">sudo vim /etc/squid/squid.conf</pre>
+
+<p>Next, she creates a set of destination rules just after the source rule she created in the last step.  These rules define what resources the instances can access. Alice uses a "dstdomain" rule to match a DNS name.  </p>
+
+<p>There are two Yum URLs for each region.  If one region is not available, Yum will try to contact another region.  Therefore, Alice adds all regions to her configuration. </p>
+
+<pre class="brush: text;">acl yum dstdomain repo.us-east-1.amazonaws.com
+acl yum dstdomain repo.us-west-1.amazonaws.com
+acl yum dstdomain repo.us-west-2.amazonaws.com
+acl yum dstdomain repo.eu-west-1.amazonaws.com
+acl yum dstdomain repo.eu-central-1.amazonaws.com
+acl yum dstdomain repo.ap-southeast-1.amazonaws.com
+acl yum dstdomain repo.ap-southeast-2.amazonaws.com
+acl yum dstdomain repo.ap-northeast-1.amazonaws.com
+acl yum dstdomain repo.sa-east-1.amazonaws.com</pre>
+
+<pre class="brush: text;">acl yum dstdomain packages.us-east-1.amazonaws.com
+acl yum dstdomain packages.us-west-1.amazonaws.com
+acl yum dstdomain packages.us-west-2.amazonaws.com
+acl yum dstdomain packages.eu-west-1.amazonaws.com
+acl yum dstdomain packages.eu-central-1.amazonaws.com
+acl yum dstdomain packages.ap-southeast-1.amazonaws.com
+acl yum dstdomain packages.ap-northeast-1.amazonaws.com
+acl yum dstdomain packages.sa-east-1.amazonaws.com
+acl yum dstdomain packages.ap-southeast-2.amazonaws.com</pre>
+
+<p>Now that the ACLs are defined to match both source and destination, Alice can update the access rule.  As we saw earlier, the default access rule only checks that the request came from the local network (in this case the VPC).</p>  
+
+<pre class="brush: text;">http_access allow localnet</pre>
+
+<p>Alice wants to check both the source and destination; therefore, she changes the access rule to check that the request came from the VPC and is going to the Yum repository.  All other requests will be denied.  Her rule looks like this:</p>
+
+<pre class="brush: text;">http_access allow localnet yum </pre>
+
+<p>Alice saves her changes and restarts the Squid daemon.</p>
+
+<pre class="brush: text;">$ sudo service squid restart</pre>
+
+<p>Alice is ready to test the new configuration.  She returns to the application instance.  Note: be sure the proxy is still configured.</p>
+
+<p>Alice once again tests access to Google, and this time she gets the expected 403 forbidden error.  Note the X-Squid-Error header below.  This indicates that Squid denied the request rather than the web server.</p>
+
+<pre class="brush: text;">$ curl -I www.google.com 
+HTTP/1.0 403 Forbidden
+...
+X-Squid-Error: ERR_ACCESS_DENIED 0</pre>
+
+<p>Next, Alice tries a Yum URL to ensure it is working.</p>
+
+<pre>$ curl -I http://repo.us-east-1.amazonaws.com/latest/main/mirror.list
+HTTP/1.1 200 OK </pre>
+
+<p>Finally, Alice tests Yum and shows it is working as expected.</p>
+
+<pre>$ yum check-update
+Loaded plugins: priorities, update-motd, upgrade-helper
+Security: kernel-3.14.20-20.44.amzn1.x86_64 is the currently running version</pre>
+
+<h2>Granting Access to Amazon S3</h2>
+
+<p>With Yum working, Alice moves on to Amazon S3.  As shown in Figure 4, she wants to allow access to both the Yum repository and Amazon S3.  Squid will continue to block access to all other URLs.  </p>
+
+<img src="https://awsmedia.s3.amazonaws.com/articles/amazon-s3-proxy-squid/figure-4.png">
+ 
+<p>Figure 4 - Squid allowing access to Yum repository and Amazon S3 buckets</p>
+
+
+<p>Amazon S3 supports two types of URLs, path and virtual host.  A path URL is in the format https://s3.amazonaws.com/mybucket and a virtual host URL is in the format https://mybucket.s3.amazonaws.com/.  See the <a href="http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html">Amazon S3 documentation</a> for more information. </p>
+
+<p>In order to support both URL types, Alice uses a regular expression.  For example, all domain names in US Standard will end with "s3.amazon.com" regardless of the URL type.  </p>
+
+<p>Returning the Squid instance, Alice opens the configuration file.</p>
+
+<pre class="brush: text;">sudo vim /etc/squid/squid.conf</pre>
+
+<p>Alice plans to support all AWS regions, so she adds a line for each region.</p>  
+ 
+<pre class="brush: text;">acl s3 dstdom_regex .*s3\.amazonaws\.com
+acl s3 dstdom_regex .*s3\.eu-central-1\.amazonaws\.com
+acl s3 dstdom_regex .*s3\.sa-east-1\.amazonaws\.com
+acl s3 dstdom_regex .*s3\.ap-northeast-1\.amazonaws\.com
+acl s3 dstdom_regex .*s3\.eu-west-1\.amazonaws\.com
+acl s3 dstdom_regex .*s3\.us-west-1\.amazonaws\.com
+acl s3 dstdom_regex .*s3\.us-west-2\.amazonaws\.com
+acl s3 dstdom_regex .*s3\.ap-southeast-2\.amazonaws\.com
+acl s3 dstdom_regex .*s3\.ap-southeast-1\.amazonaws\.com</pre>
+
+<p>Alice also adds a new access rule that allows requests from the VPC to Amazon S3.  With the Yum rule still in place, the access rules look like this:</p>
+
+<pre class="brush: text;">http_access allow localnet yum 
+http_access allow localnet s3</pre>
+
+<p>Alice saves her changes and restarts the Squid daemon.</p>
+
+<pre class="brush: text;">$ sudo service squid restart</pre>
+
+<p>Returning to the application instance, Alice tries an Amazon S3 bucket using both the path and virtual host URLs and sees that both are working as expected.  Remember to configure the environment variables if you are starting a new SSH session.</p>
+
+<pre class="brush: text;">$ curl -I https://mybucket.s3.amazonaws.com/test.txt 
+HTTP/1.1 200 OK </pre>
+
+<pre class="brush: text;">$ curl -I https://s3.amazonaws.com/mybucket/text.txt 
+HTTP/1.1 200 OK </pre>
+
+<p>Finally, Alice tests access from the AWS CLI.  Everything works great.</p>
+
+<pre class="brush: text;">$  aws s3 ls s3://mybucket
+2014-10-22 21:32:48          0 
+2014-10-22 21:38:27         15 test.txt</pre>
+
+<h2>Whitelisting Buckets </h2>
+
+<p>Alice is really happy with the results, but she wants to take it a step further.  Currently, Squid allows access to any Amazon S3 bucket owned by any AWS customer.  As shown in Figure 5, Alice would like to limit access toonly the buckets the team needs access to (e.g.,  mybucket) and block access to any other buckets.  </p>
+
+<img src="https://awsmedia.s3.amazonaws.com/articles/amazon-s3-proxy-squid/figure-5.png">
+ 
+<p>Figure 5 - Squid allowing access to specific S3 buckets</p>
+
+
+<p>Alice returns to the Squid instance and opens the configuration file again.  She creates two new ACLs that identify "mybucket" which is stored in the US Standard region. She must create two rules, one for each of the URL types discussed above.  </p>
+
+<pre class="brush: text;">acl virtual_host_urls dstdomain mybucket.s3.amazonaws.com
+acl path_urls url_regex s3\.amazonaws\.com/mybucket/.*</pre>
+
+<p>The first ACL identifies the virtual host style URL and uses dstdomain that we saw earlier.  No regular expression is needed here because Alice knows the exact host header.  The second ACL identifies the path style URL and uses url_regex to match URLs that begin with "s3.amazonaws.com/mybucket/". </p> 
+
+<p>Now, Alice locates the rule she created earlier.</p>
+
+<pre>http_access allow localnet s3</pre>
+
+<p>And then she replaces the rule with two new rules (one for each ACL).   The complete list of access rules now looks like this:</p>
+
+<pre>http_access allow localnet yum 
+http_access allow localnet virtual_host_urls
+http_access allow localnet path_urls</pre>
+
+<p>Next, she restarts the Squid daemon so she can test again.</p>
+
+<pre class="brush: text;">$ sudo service squid restart</pre>
+
+<p>Alice returns to her application instance and tests access to mybucket.  Everything appears to be working as expected.</p>
+
+<pre class="brush: text;">$  aws s3 ls s3://mybucket
+2014-10-22 21:32:48          0 
+2014-10-22 21:38:27         15 test.txt</pre>
+
+<p>At this point we want to discuss an issue with HTTPS URLs. The AWS CLI and most other tools use HTTPS. Notice that when testing with HTTPS, the virtual host-style URL works:</p>
+
+<pre class="brush: text;">$ curl -I https://mybucket.s3.amazonaws.com/test.txt 
+HTTP/1.1 200 OK </pre>
+
+<p>However, the path style URL returns a 403.  Why?</p>
+
+<pre class="brush: text;">$ curl -I https://s3.amazonaws.com/mybucket/text.txt 
+HTTP/1.0 403 Forbidden
+X-Squid-Error: ERR_ACCESS_DENIED 0</pre>
+
+<p>This fails because the path style ACL Alice created needs to see the entire URL, part of which is inside the encrypted HTTPS packet.  In the virtual host URL all the information is in the host name (see figure 6).  In the path style URL, the path-which includes the bucket name-is encrypted (see figure 7).</p>
+
+<img src="https://awsmedia.s3.amazonaws.com/articles/amazon-s3-proxy-squid/figure6.png"> 
+
+<p>Figure 6 - Virtual host style URL sent over SSL</p>
+ 
+<img src="https://awsmedia.s3.amazonaws.com/articles/amazon-s3-proxy-squid/figure7.png">
+
+<p>Figure 7 - Path style URL sent over SSL</p>
+
+<p>Squid uses a feature called SSL Bump to decrypt requests. SSL Bump is outside the scope for this article, but you can read more <a href="http://wiki.squid-cache.org/Features/SslBump">on the Squid website</a>.  Luckily, the AWS CLI uses virtual host URLs and works as expected without needing to decrypt SSL.</p>
+
+<h2>Controlling Squid's Outbound Interface</h2>
+
+<p>Alice is really excited about the security she has put in place so far.  But, over the first few weeks of the project, the team identifies other resources that they need access to.  Updating the rules is getting tedious.  All of these exceptions were identified in the data center a long time ago.  Alice wants to leverage the existing infrastructure.</p>  
+
+<p>Alice decides to add a virtual private gateway (VGW) to connect the VPC to her company's data center.  With the VGW in place, she can configure the VPC to send all HTTP/S requests through her data center where existing security policies have already been defined.  But, Alice does not want to add latency to the application by sending Amazon S3 requests over the VPN tunnel.  </p>
+
+<p>Alice wants a solution that leverages the VGW to send most requests to the data center, but allows her to identify special cases that should use the Internet gateway for low-latency access to specific services.  Therefore, she reconfigures her VPC as shown in Figure 8. </p>
+
+<img src="https://awsmedia.s3.amazonaws.com/articles/amazon-s3-proxy-squid/figure8.png">
+
+<p>Figure 8 - Squid directing traffic to an IGW or VGW</p>
+
+<p>In this new design, Alice adds a resources subnet.  This subnet has a new route table with a default route that points to the VGW instead of than the IGW.  She also adds an Elastic Network Interface (ENI) to the Squid proxy (shown in Figure 8 with the IP address 10.1.2.10) and places it in the resources subnet.  When the Squid proxy sends requests out the 10.1.1.10 interface, the VPC will route the request out the IGW.  When the Squid proxy sends requests out the 10.1.2.10 interface, the VPC will route the request out the VGW.  </p>
+
+<p>Rather than deny requests, Alice reconfigures the Squid proxy to allow all requests, but send them out one of the two interfaces based on the URL.  Requests for Yum and S3 will exit the 10.1.1.10 interface, and be routed out the IGW.  All other traffic will exit the 10.1.2.10 interface, and be routed over the VPN tunnel to the data center.  After the request is in the data center, the existing infrastructure can determine how to handle each request (indicated by the two yellow lines labeled "TBD" in Figure 8).</p>
+
+<p>Alice once again returns to the Squid configuration file.  First, she replaces the access rules with one that allows all traffic from the VPC.  She removes the following items:</p>
+
+<pre class="brush: text;">http_access allow localnet yum 
+http_access allow localnet virtual_host_urls
+http_access allow localnet path_urls</pre>
+
+<p>And she adds the following item:</p>
+
+<pre class="brush: text;">http_access allow localnet</pre>
+
+<p>Note that this is the same rule we used at the beginning of this article.  Now the proxy will once again allow any traffic, from anywhere in the VPC, regardless of the destination.  Rather than deny this traffic, Squid will forward it her company's data center and allow the existing infrastructure to decide what to do with it.</p>  
+
+<p>Next, Alice configures the outgoing address.  If a request is destined for a Yum repository or her Amazon S3 bucket, it will be sent to the Internet gateway using the interface with an IP address of 10.1.1.10.  If not, it will be sent to the virtual private gateway using the interface with an IP address of 10.1.2.10.</p>
+
+<pre class="brush: text;">tcp_outgoing_address 10.1.1.10 localnet yum
+tcp_outgoing_address 10.1.1.10 localnet virtual_host_urls
+tcp_outgoing_address 10.1.1.10 localnet path_urls
+tcp_outgoing_address 10.1.2.10 localnet</pre>
+
+<p>With these rules in place, Alice has enabled low-latency access to Amazon S3 while ensuring that cloud-based applications are subject to the same security policy as the applications hosted in the data center. </p>
+
+<h2>High Availability</h2>
+
+<p>Squid has become an integral part of Alice's applications, which depend on it for access to data stored in Amazon S3.  Alice wants to ensure that the Squid solution is highly available.  There are few ways to approach this. </p>
+ 
+<p>One solution, discussed in <a href="https://aws.amazon.com/articles/5995712515781075">a prior article</a>, is to host multiple Squid instances in an Auto Scaling group behind a private Elastic Load Balancer (ELB).  Unfortunately, Alice's company is small, and she is working on a tight budget.  She does not want to pay for multiple Squid instances and an ELB.    </p>
+
+<p>Alice decides to use a single Squid instance as shown in Figure 9.  She puts this instance in an Auto Scaling group with a min and max of one.  If the Squid instance - or even an entire Availability Zone - fails, the Auto Scaling group will replace it with a new instance. </p>
+
+<img src="https://awsmedia.s3.amazonaws.com/articles/amazon-s3-proxy-squid/figure-9.png">
+
+<p>Figure 9 - Making Squid highly available</p>
+
+<p>This adds obvious complexity.  When the Auto Scaling group replaces a Squid instance, the application instances need to begin using the new Squid instance.  Alice uses Amazon Route 53 to create a DNS entry (e.g., proxy.example.com) to refer to the proxy instance.  Amazon Route 53 is Amazon's highly available and scalable DNS service.</p>
+
+<p>The application instances will reference the Squid instance using the DNS name rather than an IP address as shown below.  Now, when a Squid instance fails, Alice only needs to update the DNS entry, and the application instances will all begin using the new Squid instance.</p>
+
+<pre class="brush: text;">$ export http_proxy=http://proxy.example.com:3128
+$ export https_proxy=http://proxy.example.com:3128
+$ export no_proxy="169.254.169.254"</pre>
+
+<p>To make this process automatic, Alice creates the simple shell script shown below.  This script will update Amazon Route 53 whenever a new Squid instance is launched.   She adds this script to the user-data section of the AutoScaling group's launch configuration.</p>
+
+
+<pre class="brush: text;">#!/bin/bash
+cat &lt;&lt;EOF &gt; ~/dns.conf
+{
+  "Comment": "string",
+  "Changes": [
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "proxy.example.com",
+        "Type": "A",
+        "TTL": 60,
+        "ResourceRecords": [
+          {
+            "Value": "$(curl http://169.254.169.254/latest/meta-data/local-ipv4/)"
+          }
+        ]
+      }
+    }
+  ]
+}
+EOF
+aws route53 change-resource-record-sets -hosted-zone-id "ZONEID" -change-batch "file://~/dns.conf"</pre>
+
+<p>This script will ensure that the DNS entry always points to the most recently launched Squid instance.  The script uses the Amazon EC2 metadata service to discover the IP address of the instance it is running on.  Then it calls the Amazon Route 53 API to update the DNS entry.</p>  
+
+<p>Note that you must replace ZONEID with the ID of the Amazon Route 53 hosted zone you want to update.  In addition, your instance must use an Amazon <a href="http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html">EC2 role</a> that has permission to update Route 53.</p> 
+
+<p>With the Auto Scaling group configured, Alice can be sure that her application can recover from the failure of a Squid instance. </p>  
+
+<h2>Conclusion</h2>
+
+<p>Alice has learned that the cloud is inherently elastic and she cannot depend on IP addresses remaining static.  In the past she built security rules based on IP addresses and CIDR blocks.  In the cloud she needs consider basing security rules on DNS names.</p>
+
+<p>Alice deployed a Squid proxy to control access to Yum repositories and Amazon S3. Squid can be used to allow access to all of Amazon S3 or only specific buckets.  It can also be used to direct traffic to follow a different path based on policy.  </p>
+
+<p>Alice was able to host her application at AWS and leverage her company's existing security infrastructure.  In addition, she built a highly available solution using Amazon Route 53 and Auto Scaling.</p>

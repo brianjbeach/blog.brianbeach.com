@@ -1,0 +1,180 @@
+---
+layout: post
+title: 'SharePoint 2010: Full Trust Proxy'
+date: '2011-09-30T06:47:00.000-04:00'
+author: Brian
+tags:
+- Multi-tenant
+- Powershell
+- SharePoint
+modified_time: '2014-01-20T21:13:42.632-05:00'
+thumbnail: http://3.bp.blogspot.com/-r5dFF4S5yrE/ToX_2L48ErI/AAAAAAAAADU/aTeydEakOME/s72-c/Sandbox.png
+blogger_id: tag:blogger.com,1999:blog-5050074367798755574.post-5844421321800526587
+blogger_orig_url: http://blog.brianbeach.com/2011/09/sharepoint-2010-full-trust-proxy.html
+---
+
+<br />
+If you’re using the multi-tenant features of SharePoint, you will want tenants to use the sandbox. &nbsp;But, you will quickly find limitations. &nbsp;For example, developers cannot call a web service, read data from a external database, or write to the event log. &nbsp;One solution is for the farm administrator to deploy a full trust proxy that developers can use. &nbsp;Microsoft has a good description <a href="http://msdn.microsoft.com/en-us/library/ff798433.aspx">here</a>, but there are no good examples. &nbsp;So I created one.<br />
+<br />
+Let’s create a full trust proxy that will allow developers to write to the event log. &nbsp;Sandbox code is executed in <b>SPUWorkerProcess.exe</b> (see diagram below). &nbsp;The Code Access Security (CAS) policy in this process does not allow developers to access the event log. &nbsp;Therefore, we will write a full trust proxy that will marshal the call to <b>SPUWorkerProcessProxy.exe</b> which can access the event log. <br />
+<br />
+<div class="separator" style="clear: both; text-align: center;">
+<a href="http://3.bp.blogspot.com/-r5dFF4S5yrE/ToX_2L48ErI/AAAAAAAAADU/aTeydEakOME/s1600/Sandbox.png" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" src="http://3.bp.blogspot.com/-r5dFF4S5yrE/ToX_2L48ErI/AAAAAAAAADU/aTeydEakOME/s320/Sandbox.png" height="320" width="267" /></a></div>
+<br />
+<div style="text-align: center;">
+Figure 1: http://msdn.microsoft.com/en-us/library/ff798433.aspx</div>
+<br />
+<b>Create the FullTrustProxy</b><br />
+<b><br /></b>
+Start by creating a new “Empty SharePoint Project” that is deployed as a “farm solution”. &nbsp;Remember this is the solution that the farm administrator deploys. &nbsp;The tenant developer’s code will be deployed as a sandbox solution.<br />
+<br />
+Next, add a new class called EventLogProxyArgs that inherits from <b>Microsoft.SharePoint.UserCode.SPProxyOperationArgs. </b>&nbsp;This is the class that will hold the data that needs to be marshaled from <b>SPUWorkerProcess.exe</b> to <b>SPUWorkerProcessProxy.exe</b>. &nbsp;Therefore it needs to be marked with a <b>Serializable</b> attribute. &nbsp;The code is below:<br />
+<br />
+<pre class="brush: csharp;">using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using Microsoft.SharePoint.UserCode;
+
+namespace BrianBeach.FullTrustProxy.Diagnostics
+{
+    [Serializable]
+    class EventLogProxyArgs : SPProxyOperationArgs
+    {
+        private string source;
+        private string message;
+
+        public string Source
+        {
+            get { return source; }
+            set { source = value; }
+        }
+
+        public string Message
+        {
+            get { return message; }
+            set { message = value; }
+        }
+    }
+}</pre>
+<br />
+Now, add a another class called <b>EventLogProxy</b> that inherits from <b>Microsoft.SharePoint.UserCode.SPProxyOperation</b>. &nbsp;You will need to implement the <b>Execute</b> method. &nbsp;The execute method is passed a copy of the <b>EventLogsProxyArgs </b>we created above. &nbsp;The code is below:<br />
+<br />
+<pre class="brush: csharp;">using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using Microsoft.SharePoint.UserCode;
+
+namespace BrianBeach.FullTrustProxy.Diagnostics
+{
+    class EventLogProxy : SPProxyOperation
+    {
+        public override object Execute(SPProxyOperationArgs args)
+        {
+            string source = ((EventLogProxyArgs)args).Source;
+            string message = ((EventLogProxyArgs)args).Message;
+            System.Diagnostics.EventLog.WriteEntry(source, message);
+            return null;
+        }
+    }
+}</pre>
+<br />
+<b>Create the Feature</b><br />
+<b><br /></b>
+Start by adding a new farm feature and fill out the title and description.<br />
+<br />
+<div class="separator" style="clear: both; text-align: center;">
+<a href="http://3.bp.blogspot.com/-nX0u9GWlWgM/ToX_14SwP1I/AAAAAAAAADQ/Z5fx8xwJFEA/s1600/feature.png" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" src="http://3.bp.blogspot.com/-nX0u9GWlWgM/ToX_14SwP1I/AAAAAAAAADQ/Z5fx8xwJFEA/s320/feature.png" height="320" width="278" /></a></div>
+<br />
+<br />
+Now add an event receiver. &nbsp;The event receiver will register the proxy with SharePoint. The code is below:<br />
+<br />
+<pre class="brush: csharp;">using System;
+using System.Runtime.InteropServices;
+using System.Security.Permissions;
+using Microsoft.SharePoint;
+using Microsoft.SharePoint.Security;
+using Microsoft.SharePoint.UserCode;
+using Microsoft.SharePoint.Administration;
+
+namespace BrianBeach.FullTrustProxy.Diagnostics.Features.Feature1
+{
+
+    [Guid("2f2d1b78-c30b-4197-ba44-06052b97448c")]
+    public class Feature1EventReceiver : SPFeatureReceiver
+    {
+        public override void FeatureActivated(SPFeatureReceiverProperties properties)
+        {
+            SPUserCodeService service = SPUserCodeService.Local;
+            string assembly = "BrianBeach.FullTrustProxy.Diagnostics, Version=1.0.0.0, Culture=neutral, PublicKeyToken=ba8f794a3acc2269";
+            string type = "BrianBeach.FullTrustProxy.Diagnostics.EventLogProxy";
+            SPProxyOperationType operation = new SPProxyOperationType(assembly, type);
+            service.ProxyOperationTypes.Add(operation);
+            service.Update();
+        }
+
+        public override void FeatureDeactivating(SPFeatureReceiverProperties properties)
+        {
+            SPUserCodeService service = SPUserCodeService.Local;
+            string assembly = "BrianBeach.FullTrustProxy.Diagnostics, Version=1.0.0.0, Culture=neutral, PublicKeyToken=ba8f794a3acc2269";
+            string type = "BrianBeach.FullTrustProxy.Diagnostics.EventLogProxy";
+            SPProxyOperationType operation = new SPProxyOperationType(assembly, type);
+            service.ProxyOperationTypes.Remove(operation);
+            service.Update();
+        }
+    }
+}
+</pre>
+<br />
+<b>Deploy and Test</b><br />
+<b><br /></b>
+You’re ready to deploy your package. &nbsp;Tenant developers can call the proxy from the sandbox. &nbsp;Here is an example:<br />
+<br />
+<pre class="brush: csharp;">string assembly = "BrianBeach.FullTrustProxy.Diagnostics, Version=1.0.0.0, Culture=neutral, PublicKeyToken=e6c3143148ad819b";
+string type = "BrianBeach.FullTrustProxy.Diagnostics.EventLogProxy";
+EventLogProxyArgs args = new EventLogProxyArgs();
+args.Source = “SP2010 Sandbox”;
+args.Message = “A message from the sandbox!!!”;
+SPUtility.ExecuteRegisteredProxyOperation(assembly, type, args);</pre>
+<br />
+Now, if you’re like me, the thought of writing seven lines of code to write one line to the log is crazy. &nbsp;Therefore, I &nbsp;added one more class to my solution with a helper method tenant developers can call.<br />
+<br />
+Add a class called EventLog. &nbsp;You will need to mark this class with the <b>AllowPartiallyTrustedCallersAttribute</b> attribute so that users can call it from the sandbox. &nbsp;<i>NOTE: I also marked the <b>EventLogProxy </b>and <b>EventLogProxyArgs</b> classes as <b>internal </b>so that developers would not be confused by them.</i> &nbsp;The code is below:<br />
+<br />
+<pre class="brush: csharp;">using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using Microsoft.SharePoint.Utilities;
+
+[assembly: System.Security.AllowPartiallyTrustedCallersAttribute()]
+namespace BrianBeach.FullTrustProxy.Diagnostics
+{
+    public class EventLog
+    {
+        public static void WriteEntry(string Source, string Message)
+        {
+            string assembly = "BrianBeach.FullTrustProxy.Diagnostics, Version=1.0.0.0, Culture=neutral, PublicKeyToken=e6c3143148ad819b";
+            string type = "BrianBeach.FullTrustProxy.Diagnostics.EventLogProxy";
+            EventLogProxyArgs args = new EventLogProxyArgs();
+            args.Source = Source;
+            args.Message = Message;
+            SPUtility.ExecuteRegisteredProxyOperation(assembly, type, args);
+        }
+    }
+}
+</pre>
+<br />
+At this point a developer can write to the event log with a single line of code as follows:<br />
+<br />
+<pre class="brush: csharp;">EventLog.WriteEntry(“SP2010 Sandbox”, “A message from the sandbox!!!”);</pre>
+<br />
+Finally, you can&nbsp;download&nbsp;the solution <a href="http://dl.dropbox.com/u/13738331/Blog/BrianBeach.FullTrustProxy.Diagnostics.zip">here</a>.<br />
+<br />
+you will likely run into issues. &nbsp;If you need to check which proxies are registered, you can use the following PowerShell script.<br />
+<br />
+<pre class="brush: powershell;">$Service = [Microsoft.SharePoint.Administration.SPUserCodeService]::Local
+$service.ProxyOperationTypes | Format-List</pre>
+<div>
+<br /></div>

@@ -1,0 +1,44 @@
+---
+layout: post
+title: Configuring a Linux Swap Device with Cloud-Init
+date: '2014-12-14T16:10:00.000-05:00'
+author: Brian
+tags:
+- Linux
+- Swap
+- User-Data
+- Cloud-Init
+- AWS
+modified_time: '2014-12-14T16:10:08.952-05:00'
+blogger_id: tag:blogger.com,1999:blog-5050074367798755574.post-3157521871124196596
+blogger_orig_url: http://blog.brianbeach.com/2014/12/configuring-linux-swap-device-with.html
+---
+
+<p>Cloud-Init is a set of Python scripts used to configure Linux instances when they boot in AWS.  Cloud-Init is included on Ubuntu and Amazon Linux AMIs.</p>  
+
+<p>You can think of a Cloud Init script as a bare-bones Configuration Management solution like Chef or Puppet.  A Cloud-Init script is passed as user data.  If you have ever passed a shell script as user data, it was Cloud-Init that queried the meta-data service and executed the script.  But, Cloud-Init offers a higher level syntax known as cloud-config.</p>
+
+<p>One of the common examples is to mount devices when the instance boots.  An obvious example is to create a swap volume from the ephemeral disks that you are likely not using.  Here is a script that will create a swap volume on an m3.medium with its ephemeral volume attached at /dev/sdb.  (Note: even though you select /dev/sdb in the console, Linux will see it /dev/xvdb)</p>
+
+<pre class="brush: text;">
+#cloud-config
+repo_update: true
+repo_upgrade: all
+
+mounts:
+  - [ ephemeral0, none, swap, sw, 0, 0 ]
+
+bootcmd:
+ - mkswap /dev/xvdb
+ - swapon /dev/xvdb
+</pre>
+
+<p>There are three parts to the script:  
+
+<p>First, <b>repo_update</b> and <b>repo_upgrade</b> will update the repository and upgrade all packages respectively.  Note that this only occurs once on the first boot.</p>
+
+<p>Second, <b>mounts</b> will mount the ephemeral volume as a swap device with no mount point.  This will both mount the volume and update fstab so it is mounted on future reboots.</p>
+
+<p>Third, <b>bootcmd</b> will run a series of commands on each boot.  In this case setup the swap area and then enable it.  </p>
+
+<p>Note that I am using <b>bootcmd</b> rather than <b>runcmd</b>.  <b>runcmd</b> will only run on the first boot, while <b>bootcmd</b> will run every time Linux boots.  If you used <b>runcmd</b> the swap device would be configured on the first boot, but if you start/stop the instance you would be assigned a new host and the swap device would never be configured. </p>

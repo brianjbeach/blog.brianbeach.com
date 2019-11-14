@@ -1,0 +1,46 @@
+---
+layout: post
+title: Multi-Tenant TCO
+date: '2011-09-23T06:32:00.000-04:00'
+author: Brian
+tags:
+- Multi-tenant
+- Virtualization
+- Cloud
+modified_time: '2011-09-23T19:45:36.978-04:00'
+thumbnail: http://1.bp.blogspot.com/-x4R7JRsfOgI/TnzsTv4WQZI/AAAAAAAAADM/_pc_ck8Lm_M/s72-c/MultiTenantTCO.png
+blogger_id: tag:blogger.com,1999:blog-5050074367798755574.post-699795485904218429
+blogger_orig_url: http://blog.brianbeach.com/2011/09/multi-tenant-tco.html
+---
+
+<br />
+I recently presented an overview of multi-tenancy in one of my MBA classes. &nbsp;I discussed how multi-tenant applications allow cloud vendors to achieve economies of scale. &nbsp;As an example, I showed the effect on total cost of ownership for the infrastructure if a cloud vendor moved from physical to virtual and then to a multi-tenant architecture. &nbsp;The multi-tenant architecture cuts cost by 80%.<br />
+<br />
+<div class="separator" style="clear: both; text-align: center;">
+</div>
+<div class="separator" style="clear: both; text-align: center;">
+<a href="http://1.bp.blogspot.com/-x4R7JRsfOgI/TnzsTv4WQZI/AAAAAAAAADM/_pc_ck8Lm_M/s1600/MultiTenantTCO.png" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" height="251" src="http://1.bp.blogspot.com/-x4R7JRsfOgI/TnzsTv4WQZI/AAAAAAAAADM/_pc_ck8Lm_M/s400/MultiTenantTCO.png" width="400" /></a></div>
+<br />
+<br />
+<b>Current State</b><br />
+<br />
+Imagine that you work at a midsize company that develops and hosts a SaaS (Software as a Service) solution. &nbsp;You have been growing recently and now have 100 customers. &nbsp;Each customer gets its own server that your company hosts in its datacenter.<br />
+<br />
+You are currently supporting 100 physical servers. &nbsp;Unfortunately, the average utilization is only about 10%. &nbsp;Over three years, the total cost of ownership is about $2.2M ($1M for hardware acquisition, $400K for power, and $800K for support).<br />
+<br />
+<b>Virtualization</b><br />
+<br />
+Now imagine that IT moves to virtualization. &nbsp;If we are only 10% utilized, it follows that we only need 10 physical servers (each hosting 10 virtual servers). &nbsp;Leaving some room for growth and sudden spikes in demand, we decide to be safe and buy 20 servers (each hosting 5 virtual servers). &nbsp; <br />
+<br />
+This cuts our acquisition costs by 30%, and our power costs 80%, but notice that our support costs have gone up by 20%. &nbsp;Why? &nbsp;We now have 20 additional servers to support (100 VMs and 20 physical). <br />
+<br />
+<b>Multi-Tenancy</b><br />
+<br />
+Now image that we rewrote our applications to allow us to host multiple clients on the same server (i.e. multi-tenant). &nbsp;Again we decide to be safe and buy 20 servers. &nbsp;But, note that we longer need the 100 virtual servers. &nbsp;Therefore, our acquisition costs drop dramatically. &nbsp;We just cut $500K in licensing costs. &nbsp;In addition, out support team is only supporting 20 servers saving another $750K. <br />
+<br />
+<b>Conclusion</b><br />
+<br />
+Multi-tenant applications have dramatic impact on total cost of ownership. &nbsp;This allows cloud vendors to achieve economies of scale. &nbsp; What does this mean for the CIO? &nbsp;In general the best option for the average IT department is virtualization. &nbsp;Therefore, a SaaS solution can often be cheaper than hosting a solution in your own datacenter. &nbsp;This is true even after the vendor applies his markup.<br />
+<div>
+<br />
+BTW: Checkout the spreadsheet&nbsp;<a href="http://dl.dropbox.com/u/13738331/Blog/MultiTenetTCO.xlsx">here</a>. &nbsp;You can&nbsp;adjust&nbsp;my assumptions and tune the results.&nbsp;</div>

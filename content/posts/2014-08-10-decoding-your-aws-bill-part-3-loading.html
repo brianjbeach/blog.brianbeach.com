@@ -1,0 +1,174 @@
+---
+layout: post
+title: Decoding Your AWS Bill (Part 3) Loading a Data Warehouse
+date: '2014-08-10T14:17:00.001-04:00'
+author: Brian
+tags:
+- Chargeback
+- Warehouse
+- Billing
+- SQL Server
+- AWS
+modified_time: '2014-08-10T14:21:06.980-04:00'
+thumbnail: http://3.bp.blogspot.com/-ltYe_RB_kIw/U-eqKr2RRJI/AAAAAAAAAVA/CuI2qkfypdk/s72-c/AWSWH_ETL.png
+blogger_id: tag:blogger.com,1999:blog-5050074367798755574.post-487347298621242056
+blogger_orig_url: http://blog.brianbeach.com/2014/08/decoding-your-aws-bill-part-3-loading.html
+---
+
+<div class="separator" style="clear: both; text-align: left;">
+In the last two posts (<a href="http://blog.brianbeach.com/2014/01/decoding-your-aws-bill-part-1.html">part 1</a>, <a href="http://blog.brianbeach.com/2014/08/decoding-your-aws-bill-part-2.html">part 2</a>) in this series we used PowerShell to gleam information from our monthly AWS billing report. &nbsp;While you can use those scripts to learn a great amount of information from about your AWS usage, you will eventually outgrow PowerShell. &nbsp;In this post I will show you how to load the bill into SQL Server for more detailed analysis. &nbsp;</div>
+<div class="separator" style="clear: both; text-align: left;">
+<br /></div>
+<div class="separator" style="clear: both; text-align: left;">
+In the prior posts we used the monthly reports. &nbsp;These reports contain a single line item for each resource for the entire month. &nbsp;In this post we are going to use the hourly report. &nbsp;This report shows the detailed expenses incurred each hour. &nbsp;If you shut a machine down at night you will see that reflected in the report.</div>
+<h2 style="clear: both;">
+Creating a Staging Schema</h2>
+<div class="separator" style="clear: both; text-align: left;">
+The first step is to create a table in SQL Server to hold the data. &nbsp;I am calling this a staging table because this post will present a star schema for a data warehouse. &nbsp;But, you could simply use this one table and run reports directly against it. &nbsp;</div>
+<div class="separator" style="clear: both; text-align: left;">
+<br /></div>
+<div class="separator" style="clear: both; text-align: left;">
+AWS does not have a lot of detail on the schema for the billing reports. &nbsp;I have been using the following table schema for about a year now and have worked out most of the kinks. &nbsp;Some of my fields are likely larger than needed, but since my data eventually I end up in a star schema, I prefer to have a little buffer. &nbsp; Also note that I am using consolidated billing, but I am ignoring the <a href="http://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/con-bill-blended-rates.html">blended rates</a>. &nbsp;If you wanted to add blended rates, a real should suffice. &nbsp;</div>
+<div class="separator" style="clear: both; text-align: left;">
+<br /></div>
+<pre class="brush: sql;">CREATE TABLE [dbo].[StageLineItems](
+ [ReportFileName] [nvarchar](256) NOT NULL,
+ [InvoiceID] [varchar](16) NOT NULL,
+ [PayerAccountId] [bigint] NOT NULL,
+ [LinkedAccountId] [bigint] NOT NULL,
+ [RecordType] [varchar](16) NOT NULL,
+ [RecordID] [decimal](26, 0) NOT NULL,
+ [ProductName] [varchar](64) NOT NULL,
+ [RateId] [int] NOT NULL,
+ [SubscriptionId] [int] NOT NULL,
+ [PricingPlanId] [int] NOT NULL,
+ [UsageType] [varchar](64) NOT NULL,
+ [Operation] [varchar](32) NOT NULL,
+ [AvailabilityZone] [varchar](16) NULL,
+ [ReservedInstance] [char](1) NOT NULL,
+ [ItemDescription] [varchar](256) NOT NULL,
+ [UsageStartDate] [datetime] NOT NULL,
+ [UsageEndDate] [datetime] NOT NULL,
+ [UsageQuantity] [real] NOT NULL,
+ [Rate] [real] NOT NULL,
+ [Cost] [real] NOT NULL,
+ [ResourceId] [varchar](128) NULL,
+ [user:Name] [varchar](256) NULL,
+ [user:Owner] [varchar](256) NULL,
+ [user:Project] [varchar](256) NULL
+)
+</pre>
+<br />
+<h2 style="clear: both; text-align: left;">
+Loading the Data</h2>
+<div class="separator" style="clear: both; text-align: left;">
+Once you have the table created you will need to load the report. &nbsp;I use an SSIS job for this. &nbsp;I am loading the "Detailed Line Items with Resources and Tags" report. &nbsp;This is the most detailed report available. &nbsp;I created a custom script task in SSIS to download the report from S3. &nbsp;This package runs every six hours to refresh the data in the warehouse.</div>
+<div class="separator" style="clear: both; text-align: left;">
+<br /></div>
+<div class="separator" style="clear: both; text-align: left;">
+My script expects the account id, bucket name, access key, and secret key. &nbsp;In addition, you can optional specify the month, year and file name. &nbsp;If you don't specify the optional params, the script will calculate the current month and return it do you can use it later in the package. &nbsp;See below.</div>
+<div class="separator" style="clear: both; text-align: left;">
+<br /></div>
+<div class="separator" style="clear: both; text-align: center;">
+<a href="http://3.bp.blogspot.com/-ltYe_RB_kIw/U-eqKr2RRJI/AAAAAAAAAVA/CuI2qkfypdk/s1600/AWSWH_ETL.png" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" src="http://3.bp.blogspot.com/-ltYe_RB_kIw/U-eqKr2RRJI/AAAAAAAAAVA/CuI2qkfypdk/s1600/AWSWH_ETL.png" height="466" width="640" /></a></div>
+<div class="separator" style="clear: both; text-align: center;">
+<br /></div>
+<div class="separator" style="clear: both; text-align: left;">
+<br /></div>
+<div class="separator" style="clear: both; text-align: left;">
+The code for my script task is below. &nbsp;It calculates the dates and then uses the AWS .Net API to download the file. &nbsp;<i>Note that you must GAC AWSSDK.dll before SSIS will load it.&nbsp;</i></div>
+<div class="separator" style="clear: both; text-align: left;">
+<br /></div>
+<pre class="brush: csharp;">using System;
+using System.Data;
+using Microsoft.SqlServer.Dts.Runtime;
+using System.Windows.Forms;
+
+using Amazon;
+using Amazon.S3;
+using Amazon.S3.Model;
+using System.IO;
+
+namespace ST_a8746170d9b84f1da9baca053cbdc671.csproj
+{
+    [System.AddIn.AddIn("ScriptMain", Version = "1.0", Publisher = "", Description = "")]
+    public partial class ScriptMain : Microsoft.SqlServer.Dts.Tasks.ScriptTask.VSTARTScriptObjectModelBase
+    {
+        #region VSTA generated code
+        enum ScriptResults
+        {
+            Success = Microsoft.SqlServer.Dts.Runtime.DTSExecResult.Success,
+            Failure = Microsoft.SqlServer.Dts.Runtime.DTSExecResult.Failure
+        };
+        #endregion
+
+        public void Main()
+        {
+            string accountId = (string)Dts.Variables["accountId"].Value;
+            string accessKey = (string)Dts.Variables["accessKey"].Value;
+            string secretKey = (string)Dts.Variables["secretKey"].Value;
+            string bucketName = (string)Dts.Variables["bucketName"].Value;
+
+            System.DateTime date = DateTime.Now.AddDays(-5);
+            int month = (int)Dts.Variables["Month"].Value;
+            if (month == 0) { month = date.Month; }
+            int year = (int)Dts.Variables["Year"].Value;
+            if (year == 0) { year = date.Year; }
+
+            try
+            {
+                string keyName = string.Format("{0}-aws-billing-detailed-line-items-with-resources-and-tags-{1:0000}-{2:00}.csv.zip", accountId, year, month);
+                Dts.Variables["keyName"].Value = keyName;
+
+                string zipFilePath = Path.Combine(Path.GetTempPath(), keyName);
+                Dts.Variables["zipFilePath"].Value = zipFilePath;
+
+                string csvFilePath = zipFilePath.Replace(".zip", "");
+                Dts.Variables["csvFilePath"].Value = csvFilePath;
+
+                    AmazonS3Config config = new AmazonS3Config()
+                    {
+                        ServiceURL = "s3.amazonaws.com"
+                    };
+
+                    using (IAmazonS3 client = Amazon.AWSClientFactory.CreateAmazonS3Client(accessKey, secretKey, RegionEndpoint.USEast1))
+                    {
+                        GetObjectRequest request = new GetObjectRequest()
+                        {
+                            BucketName = bucketName,
+                            Key = keyName
+                        };
+
+                        using (GetObjectResponse response = client.GetObject(request))
+                        {
+                            if (File.Exists(zipFilePath)) File.Delete(zipFilePath);
+                            response.WriteResponseStreamToFile(zipFilePath);
+                        }
+                    }
+                    Dts.TaskResult = (int)ScriptResults.Success;
+            }
+            catch (AmazonS3Exception amazonS3Exception)
+            {
+                Dts.TaskResult = (int)ScriptResults.Failure;
+            }
+        }
+    }
+}
+</pre>
+<br />
+Notice that the report we are downloading is a .zip file. &nbsp;The detailed report can get very large. &nbsp;I am simply shelling out to 7Zip from the SSIS package to decompress the report. &nbsp;Finally, note that the report contains a few summary lines you will likely want to exclude from the report when you load. &nbsp;I use the following filter.<br />
+<br />
+<pre>RecordType == "LineItem" &amp;&amp; RateId != 0 &amp;&amp; !ISNULL(RecordId)</pre>
+<br />
+<h2>
+Star Schema</h2>
+The final piece of the puzzle is loading the data into a warehouse for reporting. &nbsp;I'm not going to take you through the details of designing a data warehouse, but I can share the schema I am using. &nbsp;I analyzed the data a few times using a Data Profiling Task, and ultimately settled on the following dimension tables<br />
+<div class="separator" style="clear: both; text-align: center;">
+<br /></div>
+<div class="separator" style="clear: both; text-align: center;">
+<a href="http://4.bp.blogspot.com/-EgRhZV92X3g/U-eqLQt5IUI/AAAAAAAAAVI/1TaG6fmoLRk/s1600/AWSWH_Schema.png" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" src="http://4.bp.blogspot.com/-EgRhZV92X3g/U-eqLQt5IUI/AAAAAAAAAVI/1TaG6fmoLRk/s1600/AWSWH_Schema.png" height="558" width="640" /></a></div>
+<br />
+<div>
+I hope this series has been helpful. &nbsp;</div>
+<div>
+<br /></div>

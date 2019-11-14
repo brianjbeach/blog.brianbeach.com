@@ -1,0 +1,73 @@
+---
+layout: post
+title: My Cloud EX2 Backup to Amazon S3
+date: '2015-10-04T16:38:00.000-04:00'
+author: Brian
+tags: 
+modified_time: '2015-10-24T14:56:00.550-04:00'
+thumbnail: http://3.bp.blogspot.com/-NxyhT5Zbf-8/VhF7_SFOoPI/AAAAAAACcI8/DwvVrxbx19g/s72-c/wd_mycloud_ex2_gallery-100314584-large.png
+blogger_id: tag:blogger.com,1999:blog-5050074367798755574.post-5489443410761517503
+blogger_orig_url: http://blog.brianbeach.com/2015/10/my-cloud-ex2-backup-to-amazon-s3.html
+---
+
+<div class="separator" style="clear: both; text-align: left;">
+With all the devices in the house it was finally time to invest in a NAS. I settled on the Western Digital My Cloud EX2. I picked this specifically because it supported back up to Amazon S3. In practice, the backup software sucks and I had to work around a few issues to get it working reliably and inexpensively. &nbsp;</div>
+<div class="separator" style="clear: both; text-align: center;">
+<br /></div>
+<div class="separator" style="clear: both; text-align: center;">
+<a href="http://3.bp.blogspot.com/-NxyhT5Zbf-8/VhF7_SFOoPI/AAAAAAACcI8/DwvVrxbx19g/s1600/wd_mycloud_ex2_gallery-100314584-large.png" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" height="214" src="http://3.bp.blogspot.com/-NxyhT5Zbf-8/VhF7_SFOoPI/AAAAAAACcI8/DwvVrxbx19g/s320/wd_mycloud_ex2_gallery-100314584-large.png" width="320" /></a></div>
+<br />
+Overall I really like the EX2. It has great features for the price. My version came with two 4TB drives which I configured to mirror for redundancy (you can forgo redundancy and get 8TB of storage). &nbsp;The EX2 supports SMB and NFS. It can act a DLNA (I use an app called Vimu Player on my Fire TV) or iTunes server (unprotected audio only). For the more advanced user, you can also join Active Directory, act as an iSCSI target, and mount ISO images. The EX2 can backup to another EX2, Elephant Drive or Amazon S3. The rest of this post focuses on backup to S3 which is less than perfect, but with a little effort I have it running reliably.<br />
+<h2>
+Backup</h2>
+At a high level, I want the back to protect me from three things: 1) Hardware failure. The EX2 has two disks, but I still want a more protection. 2) My own stupidity. I might accidentally delete or overwrite something. 3) Malware. Most notably <a href="https://en.wikipedia.org/wiki/CryptoLocker">CryptoLocker </a>or similar ransom ware. The backup agent built into the EX2 offers three backup types (taken from <a href="http://www.wdc.com/wdproducts/library/UM/ENG/4779-705119.pdf">here</a>):<br />
+<br />
+<ul>
+<li><b>Overwriting existing file(s):</b>&nbsp;Overwrites files in the target folder that have the identical name as your source file.</li>
+<li><b>Full Backup:</b>&nbsp;Creates a separate folder containing all of the backup data each time the backup is performed.</li>
+<li><b>Incremental Backup:&nbsp;</b>Overwrites files with source files that are newer then the target files.</li>
+</ul>
+<br />
+I wanted the third option, and this is what I am running. Unfortunately, it does not work as advertised. Every once in a while it overwrites files that have not changed. This would be not a big deal, but I want to run <a href="http://docs.aws.amazon.com/AmazonS3/latest/dev/Versioning.html">versioning</a> to protect against malicious malware overwriting my files. With versioning enabled, S3 stores every version of your files so you can always roll back to an old copy.<br />
+<br />
+The problem is that the EX2 keeps adding versions. &nbsp;Over the past six months it has created as many as 10 copies of a file that has never changed. This has driven my bill up dramatically. To keep my bill in check I resorted to a <a href="http://docs.aws.amazon.com/AmazonS3/latest/dev/object-lifecycle-mgmt.html">lifecycle</a> policy that moves my files to glacier and removes old versions after 30 days. &nbsp;<a href="https://aws.amazon.com/glacier/">Glacier </a>is much cheaper and and 30 days gives me enough time to fix a mistake.<br />
+<h2>
+Configuration</h2>
+The first thing I created was an S3 bucket. There is noting special here, just accept the defaults. &nbsp;Then, I created the lifecycle policy described above. The configuration looks like this:<br />
+<br />
+<div class="separator" style="clear: both; text-align: center;">
+<a href="http://2.bp.blogspot.com/--Ekn4u3Rais/VhGLSH8EJ5I/AAAAAAACcJM/j9J5jXyv_L4/s1600/Lifecycle.png" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" height="385" src="http://2.bp.blogspot.com/--Ekn4u3Rais/VhGLSH8EJ5I/AAAAAAACcJM/j9J5jXyv_L4/s640/Lifecycle.png" width="640" /></a></div>
+<br />
+Next, I needed an IAM user for the backup job on the EX2. I created a user policy that had only those rights needed by the backup job. &nbsp;This way, even if my EX2 were compromised, the attacker could never delete from my bucket or access other resources in my account. My policy looks like this. &nbsp;<br />
+<br />
+<pre class="brush: text;">{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": "s3:ListAllMyBuckets",
+            "Resource": "arn:aws:s3:::*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:ListBucket",
+                "s3:GetBucketLocation"
+            ],
+            "Resource": "arn:aws:s3:::BUCKETNAME"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:PutObject",
+                "s3:GetObject"
+            ],
+            "Resource": "arn:aws:s3:::BUCKETNAME/*"
+        }
+    ]
+}
+</pre>
+<br />
+Finally, I could configure the backup job on the EX2. The configuration above has been running for a while now. It still overwrites files that have not changed, but the lifecycle policy keeps them under control.<br />
+<br />
+<br />

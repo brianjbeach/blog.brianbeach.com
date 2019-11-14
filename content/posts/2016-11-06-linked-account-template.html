@@ -1,0 +1,30 @@
+---
+layout: post
+title: Linked Account Template
+date: '2016-11-06T11:13:00.001-05:00'
+author: Brian
+tags: 
+modified_time: '2016-11-06T11:13:33.473-05:00'
+thumbnail: https://2.bp.blogspot.com/-4EGTm90D5Qc/WB9Q9aFt_GI/AAAAAAACiOY/1pZNtZp03nAUtHQuXMIr-yfF3r4UHAOkQCLcB/s72-c/Figure1.png
+blogger_id: tag:blogger.com,1999:blog-5050074367798755574.post-8965406081029962782
+blogger_orig_url: http://blog.brianbeach.com/2016/11/linked-account-template.html
+---
+
+It is common for an AWS customer to have many accounts. &nbsp;Often a central IT team will own the payer account and have oversight over all accounts. The IT team will create a linked account for each project or business unit. When you create a new linked account, it's helpful to have a template Cloud Formation template to ensure the configuration of the linked accounts are all identical. <br />
+<br />
+<div class="separator" style="clear: both; text-align: center;">
+<a href="https://2.bp.blogspot.com/-4EGTm90D5Qc/WB9Q9aFt_GI/AAAAAAACiOY/1pZNtZp03nAUtHQuXMIr-yfF3r4UHAOkQCLcB/s1600/Figure1.png" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" height="262" src="https://2.bp.blogspot.com/-4EGTm90D5Qc/WB9Q9aFt_GI/AAAAAAACiOY/1pZNtZp03nAUtHQuXMIr-yfF3r4UHAOkQCLcB/s400/Figure1.png" width="400" /></a></div>
+<br />
+<a href="https://github.com/brianjbeach/aws-linked-account-template/blob/master/AccountConfig.template">This template</a>&nbsp;takes the account number of the payer account and a bucket to write CloudTrail logs to (Note: best practice is to write logs to the payer account to ensure separation of duties.) It will create:<br />
+<br />
+<br />
+<ol>
+<li><b>CloudTrail </b>- Configures a trail that writes to the bucket specified. This bucket should be in the payer account to assure that users in the linked accounts cannot alter the log.</li>
+<li><b>CrossAccountOversight </b>- A cross account role that users in the parent account can assume when they need access to the linked account.</li>
+<li><b>SystemAdministrators </b>- Add users to this group if they need to manage resources in the linked account. This is just a template and you can alter it to include the subset of services you allow the account owners to use. Note that this group gives users read only access to everything so they do not get errors navigating around the console.</li>
+<li><b>SecurityAdministrators</b> - Add users to this group if you want them to manage their own permissions. Note that if you do, they can delete your oversight role so only add users you trust.</li>
+<li><b>ChangeYourPassword </b>- A managed policy that allows users to change their own password. Note that this policy is already associated with the SystemAdministrators group.</li>
+<li><b>DefaultInstanceRole </b>- An instance role users can assign to an EC2 instance. I allows read only access to EC2 so instances can discover information about the environment they are running in for auto configuration at runtime.</li>
+</ol>
+<br />
+<br />

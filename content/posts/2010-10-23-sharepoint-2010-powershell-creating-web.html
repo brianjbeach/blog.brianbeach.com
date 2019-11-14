@@ -1,0 +1,47 @@
+---
+layout: post
+title: 'SharePoint 2010 & Powershell: Creating a Web Application'
+date: '2010-10-23T08:21:00.003-04:00'
+author: Brian
+tags:
+- Powershell
+- SharePoint
+modified_time: '2014-01-20T21:12:48.678-05:00'
+blogger_id: tag:blogger.com,1999:blog-5050074367798755574.post-5171689529275505351
+blogger_orig_url: http://blog.brianbeach.com/2010/12/sharepoint-2010-powershell-creating-web.html
+---
+
+This is the second in a series of posts on scripting administrative functions in SharePoint.  I assume you have already created the farm as describer here.  Let’s start by creating a simple web application for our corporate intranet.<br />
+First, we will need to set up a few variables.<br />
+<ol>
+<li>First, pick a URL, for example http://intranet.brianbeach.com.  Of course you will need a DNS entry created for this or you will need to add an entry to your hosts file for testing.</li>
+<li>Next, we will need a host header.  This will likely be the same as the URL, but without the protocol.  There are a few scenarios were the URL and host header could be different (e.g. we are using a web application firewall to terminate SSL) but this is beyond the scope of this post.</li>
+<li>Each web application has one or more content databases, so let’s create a new default database for the intranet application.</li>
+<li>Finally, each web application will have an associated web site and application pool in IIS.  We need to pick a name for both and choose a service account.  I assume that you have already created the service account.  Also, this does not have to be the same service account that the far is configured to run as.</li>
+</ol>
+When you run the script, it should ask you to enter the password for the service account and then create the web application.<br />
+<pre class="brush: powershell;">$WebAppURL = "http://intranet.DOMAIN.com"
+$HostHeader = "intranet.DOMAIN.com"
+$ContentDatabase = "Content_Intranet_Default"
+$WebAppName = "Intranet Web Application"
+$AppPoolName = "Intranet Content"
+$AppPoolUserName = "DOMAIN\SERVICE_ACCOUNT"
+
+Write-Host "Creating the intranet web application"
+$AppPoolCred = Get-Credential $AppPoolUserName
+$AppPoolAccount = New-SPManagedAccount -Credential $AppPoolCred
+$AuthProvider = New-SPAuthenticationProvider
+$WebApp = New-SPWebApplication -ApplicationPool $AppPoolName -ApplicationPoolAccount $AppPoolAccount -Name $WebAppName -URL $WebAppURL -HostHeader $HostHeader -Port 80 -AuthenticationProvider $AuthProvider -DatabaseName $ContentDatabase</pre>
+At this point the web application has been created, but there is no content added yet.  Let’s add a new site collection.  This script will create a new blank site and assign an owner.  Note that the URL is the same as the web application.  That is because this is the root site collection.  In the next post, we add additional site collections.  You will also need to supply a name for the site, and the username and email address of the site owner.<br />
+<pre class="brush: powershell;">$SiteName = "Intranet Root Site"
+$OwnerEmail = "USER_NAME@DOMAIN.com"
+$OwnerAlias = "DOMAIN\USER_NAME"
+$SiteURL = "http://intranet.DOMAIN.com"
+$SiteTemplate = "STS#1"
+
+Write-Host "Creating a default site collection in the intranet web application"
+New-SPSite -Url $SiteURL -owneralias $OwnerAlias -ownerEmail $OwnerEmail -Template $SiteTemplate
+$Web = Get-SPWeb $SiteURL
+$Web.title = $SiteName
+$Web.update()</pre>
+That’s it!  We have created a web application and added a new site collection.  In the next post we will add a few additional site collections to our intranet.

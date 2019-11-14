@@ -1,0 +1,4 @@
+baseURL = "http://blog.aws.brianbeach.com.s3-website-us-east-1.amazonaws.com/"
+languageCode = "en-us"
+title = "Brian Beach"
+theme = "ananke"

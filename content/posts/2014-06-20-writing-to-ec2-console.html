@@ -1,0 +1,78 @@
+---
+layout: post
+title: Writing to the EC2 Console
+date: '2014-06-20T16:31:00.000-04:00'
+author: Brian
+tags:
+- EC2
+- AMI
+- AWS
+modified_time: '2014-07-19T16:36:26.836-04:00'
+blogger_id: tag:blogger.com,1999:blog-5050074367798755574.post-5505168522471058305
+blogger_orig_url: http://blog.brianbeach.com/2014/07/writing-to-ec2-console.html
+---
+
+I have been building a bunch of Windows AMIs for EC2 recently. &nbsp;If the instance fails to build it can be a real bear to diagnose issues. &nbsp;You don't have access to the console to watch what's happening. &nbsp;It would be great if I could log to the EC2 Console (also called the System Log on the web site) so I knew what was happening. &nbsp;So I hacked the EC2Config Service to see how it was writing to the console.<br />
+<br />
+The EC2 Console, it turns out, is listening to Serial Port COM1. &nbsp;So if want to write a message to the log, all you have to do is write to COM1. &nbsp;Of course the EC2 Config Service already has COM1 open, so we have to close it first. &nbsp;Here is a quick sample.<br />
+<br />
+<pre class="brush:powershell;">Stop-Service Ec2Config
+$Port = New-Object System.IO.Ports.SerialPort
+$Port.PortName = "COM1"
+$Port.BaudRate = 0x1c200
+$Port.Parity = [System.IO.Ports.Parity]::None
+$Port.DataBits = 8
+$Port.StopBits = [System.IO.Ports.StopBits]::One
+$Port.Open()
+$Port.WriteLine("This was written directly to the serial port");
+$Port.Close()
+</pre>
+<br />
+You can also use a helper class that ships with EC2 Config Service called ConsoleLibrary. &nbsp;This implementation is thread-safe, adds the date and time, and takes care of all the serial port configuration details. &nbsp;Of course you still need to close the EC2 Config Service before running this code. <br />
+<br />
+<pre class="brush:powershell;">#Stop the EC2 Config Service
+Stop-Service Ec2Config
+#Ensure the log file exists or you will get an error
+New-Item -ItemType File -Force -Path 'C:\Windows\system32\WindowsPowerShell\v1.0\Logs\Ec2ConfigLog.txt'
+#Load the Ec2Config Library
+[System.Reflection.Assembly]::LoadFrom("C:\Program Files\Amazon\Ec2ConfigService\Ec2ConfigLibrary.dll")
+#Write to the Console
+[ConsoleLibrary.ConsoleLibrary]::Instance().WriteToConsole("This was written using the Ec2ConfigLibrary", $true)</pre>
+<br />
+As you can see below, me messages appear mixed in with the standard console messages, but note that the Console is only updated during boot. &nbsp;If you write to the log after boot the messages will not appear until the next reboot. <br />
+<br />
+<pre>2014/07/19 18:18:50Z: AMI Origin Version: 2014.07.10
+2014/07/19 18:18:50Z: AMI Origin Name: Windows_Server-2012-R2_RTM-English-64Bit-Base
+2014/07/19 18:18:50Z: OS: Microsoft Windows NT 6.2.9200.0
+2014/07/19 18:18:50Z: Language: en-US
+2014/07/19 18:18:50Z: EC2 Agent: Ec2Config service v2.2.5.0
+2014/07/19 18:18:50Z: Driver: AWS PV Network Device v7.2.0.0
+2014/07/19 18:18:50Z: Driver: AWS PV Storage Host Adapter v7.2.0.0
+2014/07/19 18:18:51Z: Message: Waiting for meta-data accessibility...
+2014/07/19 18:18:51Z: Message: Meta-data is now available.
+2014/07/19 18:18:51Z: AMI-ID: ami-9ade1df2
+2014/07/19 18:18:51Z: Instance-ID: i-05132d2e
+2014/07/19 18:18:51Z: Ec2SetPassword: Disabled
+2014/07/19 18:18:51Z: RDPCERTIFICATE-SUBJECTNAME: WIN-JCK73T6NRFU
+2014/07/19 18:18:51Z: RDPCERTIFICATE-THUMBPRINT: 68D80A1B0567E60D0BD2C6A8068D7E1D55ED3DDC
+2014/07/19 18:18:53Z: Message: Windows is Ready to use
+<span style="background-color: yellow;">This was written directly to the serial port
+2014/07/19 19:30:54Z: This was written using the Ec2ConfigLibrary</span>
+2014/07/19 19:32:57Z: AMI Origin Version: 2014.07.10
+2014/07/19 19:32:57Z: AMI Origin Name: Windows_Server-2012-R2_RTM-English-64Bit-Base
+2014/07/19 19:32:57Z: OS: Microsoft Windows NT 6.2.9200.0
+2014/07/19 19:32:57Z: Language: en-US
+2014/07/19 19:32:57Z: EC2 Agent: Ec2Config service v2.2.5.0
+2014/07/19 19:32:58Z: Driver: AWS PV Network Device v7.2.0.0
+2014/07/19 19:32:58Z: Driver: AWS PV Storage Host Adapter v7.2.0.0
+2014/07/19 19:32:58Z: Message: Waiting for meta-data accessibility...
+2014/07/19 19:32:59Z: Message: Meta-data is now available.
+2014/07/19 19:32:59Z: AMI-ID: ami-9ade1df2
+2014/07/19 19:32:59Z: Instance-ID: i-05132d2e
+2014/07/19 19:32:59Z: Ec2SetPassword: Disabled
+2014/07/19 19:32:59Z: RDPCERTIFICATE-SUBJECTNAME: WIN-JCK73T6NRFU
+2014/07/19 19:32:59Z: RDPCERTIFICATE-THUMBPRINT: 68D80A1B0567E60D0BD2C6A8068D7E1D55ED3DDC
+2014/07/19 19:33:00Z: Message: Windows is Ready to use
+
+</pre>
+<br />

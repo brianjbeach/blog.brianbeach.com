@@ -1,0 +1,87 @@
+---
+layout: post
+title: Setting the Hostname in a SysPreped AMI
+date: '2014-05-30T18:06:00.000-04:00'
+author: Brian
+tags:
+- SysPrep
+- AMI
+- AWS
+modified_time: '2014-07-19T13:12:32.332-04:00'
+thumbnail: http://4.bp.blogspot.com/-Z1g3U_WUao8/U8qmbGckkaI/AAAAAAAAAUM/XgPBcjgYhy4/s72-c/Untitled.jpg
+blogger_id: tag:blogger.com,1999:blog-5050074367798755574.post-7266917469816119767
+blogger_orig_url: http://blog.brianbeach.com/2014/07/setting-hostname-in-syspreped-ami.html
+---
+
+When you create an Windows AMI (Amazon Machine Image) it is configured to generate a random server name. &nbsp;Often this name does not meet your needs. &nbsp;Maybe your company has a specific naming convention (e.g US-NYC-1234) or you just want to use a descriptive name (e.g. WEB01). &nbsp;Whatever the reason, let's look at how to set the name when you launch the machine.<br />
+<br />
+In this post we will use PowerShell to read the name from a Tag on the instance. &nbsp;When done, you set the hostname in launch wizard by simply filling in the Name tag. &nbsp;See the image below. &nbsp;Our script will read this tag and rename the server when it boots for the first time.<br />
+<br />
+<div class="separator" style="clear: both; text-align: center;">
+<a href="http://4.bp.blogspot.com/-Z1g3U_WUao8/U8qmbGckkaI/AAAAAAAAAUM/XgPBcjgYhy4/s1600/Untitled.jpg" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" src="http://4.bp.blogspot.com/-Z1g3U_WUao8/U8qmbGckkaI/AAAAAAAAAUM/XgPBcjgYhy4/s1600/Untitled.jpg" height="135" width="320" /></a></div>
+<br />
+<br />
+It is important to automate the name change. &nbsp;As your cloud adoption matures, you quickly realize that you cannot have an admin log in and rename the server when it's launched. &nbsp;First, it takes too long. &nbsp;Second, you want servers to launch automatically, for example, in response to an auto-scaling event. <br />
+<br />
+So how can you set the name? &nbsp;You will find a ComputerName element in the SysPrep2008.xml file that ships with the EC2 Config Service (or in the unattended.xml file if you're not using the EC2 Config Service.) &nbsp;The computer name is in the specialize section. &nbsp;In the snippet below, you can see the default value of "*". &nbsp;The star means that windows should generate a random name. <br />
+<br />
+<pre class="brush: xml;">&lt;component language="neutral" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" versionScope="nonSxS" publicKeyToken="31bf3856ad364e35" processorArchitecture="amd64" name="Microsoft-Windows-Shell-Setup"&gt;
+    &lt;ComputerName&gt;*&lt;/ComputerName&gt;
+    &lt;CopyProfile&gt;true&lt;/CopyProfile&gt;
+    &lt;RegisteredOrganization&gt;Amazon&lt;/RegisteredOrganization&gt;
+    &lt;TimeZone&gt;Eastern Standard Time&lt;/TimeZone&gt;
+&lt;/component&gt;</pre>
+<br />
+If you want to change the name you can simply hard-code whatever you want here. &nbsp;Of course, if you hard-code if before you run SysPrep, every machine you create from the AMI will have the same name. &nbsp;That's not what we want. &nbsp;So the trick is to set the name when the machine first boots and before specialize runs. <br />
+<br />
+Let's quickly review how SysPrep works. &nbsp;When you run SysPrep, it wipes any identifying information form the machine (e.g. Name, SIDs, etc.) &nbsp;This is known as the <b>generalize </b>phase. &nbsp;After the generalize phase you shutdown the machine and take the image. <br />
+<br />
+When a SysPreped image first boots, it runs windows setup (WinDeploy.exe). &nbsp;This is known as the <b>specialize </b>phase. &nbsp;If you have ever bought a new home computer, you have experienced the setup wizard that allows you to configure your timezone, etc. &nbsp;In the cloud you cannot answer questions so you have to supply an unattended.xml file with the answers to all the questions. &nbsp; <br />
+<br />
+We need to inject our script into the specialize phase before setup runs. &nbsp;Our script will get the machine name from the EC2 API and modify the unattended.xml file. &nbsp;Here is a sample script to do just that. &nbsp;The script has three parts. <br />
+<br />
+<ul>
+<li>The first part uses the meta-data service to discover the identity of the instance and the region the machine is running in.</li>
+<li>The second part of the script uses the EC2 API to get the name tag from for the instance. &nbsp;<i>Note that I have not included any credentials. &nbsp;I assume that the instance is in a role that allows access to the Get-EC2Tag API call.</i></li>
+<li>The third part of the script modifies the unattended.xml file. &nbsp;This is the same file shown earlier. &nbsp;The script simply finds the ComputerName node and replaces the * with the correct name.</li>
+</ul>
+<br />
+<br />
+<pre class="brush: powershell;">Write-Host "Discovering instance identity from meta-data web service"
+$InstanceId = (Invoke-RestMethod 'http://169.254.169.254/latest/meta-data/instance-id').ToString()
+$AvailabilityZone = (Invoke-RestMethod 'http://169.254.169.254/latest/meta-data/placement/availability-zone').ToString()
+$Region = $AvailabilityZone.Substring(0,$AvailabilityZone.Length-1)
+
+Write-Host "Getting Tags for the instance"
+$Tags = Get-EC2Tag -Filters @{Name='resource-id';Value=$InstanceId} -Region $Region
+$InstanceName = ($Tags | Where-Object {$_.Key -eq 'Name'}).Value
+Write-Host "`tFound Instance Name: $InstanceName"
+Write-Host "`tFound Instance Owner: $InstanceOwner"
+
+If($InstanceName -ne $null) {
+ Write-Host "Setting the machine name to $InstanceName"
+<pre class="brush: powershell;"> $AnswerFilePath = "C:\Windows\Panther\unattend.xml"
+</pre>
+$AnswerFile = [xml](Get-Content -Path $AnswerFilePath) 
+ $ns = New-Object System.Xml.XmlNamespaceManager($AnswerFile.NameTable)
+ $ns.AddNamespace("ns", $AnswerFile.DocumentElement.NamespaceURI)
+ $ComputerName = $AnswerFile.SelectSingleNode('/ns:unattend/ns:settings[@pass="specialize"]/ns:component[@name="Microsoft-Windows-Shell-Setup"]/ns:ComputerName', $ns)
+ $ComputerName.InnerText = $InstanceName
+ $AnswerFile.Save($AnswerFilePath)
+}</pre>
+<br />
+So how do we get this script to run before setup? That's the tricky part. &nbsp;Let's dig a bit deeper. &nbsp;I said earlier that when a SysPreped image first boots it will run WinDeploy.exe. &nbsp;To be more specific, it will run whatever it finds in the HKLM:\System\Setup registry key. &nbsp;SysPrep will put&nbsp;c:\Windows\System32\oobe\windeploy.exe in the registry key before shutdown.<br />
+<br />
+So we need to change that registry key after SysPrep runs, but before the system shuts down. &nbsp;To do that we need to pass the /quit flag rather than /shutdown. &nbsp;I'm writing about AWS, so I assume you are calling SysPrep from the EC2Config service. &nbsp;If you are, you need to edit the switches element of the &nbsp;BundleConfig.xml file in the EC2Config folder. &nbsp;The switches element is about midway down the file. &nbsp;See the example below. &nbsp;Just remove /shutdown and replace it with /quit.<br />
+<br />
+<pre class="brush: powershell;">&lt;Sysprep version="6.0"&gt;
+      &lt;PreSysprepRunCmd&gt;C:\Program Files\Amazon\Ec2ConfigService\Scripts\BeforeSysprep.cmd&lt;/PreSysprepRunCmd&gt;
+      &lt;ExePath&gt;C:\windows\system32\sysprep\sysprep.exe&lt;/ExePath&gt;
+      &lt;AnswerFilePath&gt;sysprep2008.xml&lt;/AnswerFilePath&gt;
+      &lt;Switches&gt;/oobe /shutdown /generalize&lt;syspr/Switches&gt;
+&lt;/Sysprep&gt;</pre>
+<br />
+Alright, we are almost there. &nbsp;Now you can run SysPrep and it will give you a chance to make changes before shutting down. &nbsp;You want to replace the HKLM:\System\Setup registry key with the script we created above. &nbsp;Don't forget to add a line to call WinDeploy.exe at the end of the script. <br />
+<br />
+With all that done (it's not as bad it sounds) you can shutdown and take an image. &nbsp;It will take a few tries to get all this working correctly. &nbsp;I recommend that you log the output of the script using&nbsp;Start-Transcript. &nbsp;If the server fails to boot you can attach the volume to another instance and read the log. <br />
+<br />

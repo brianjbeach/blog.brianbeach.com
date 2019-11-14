@@ -1,0 +1,192 @@
+---
+layout: post
+title: Decoding Your AWS Bill (Part 2) Chargeback with Tags
+date: '2014-08-09T15:57:00.001-04:00'
+author: Brian
+tags:
+- Chargeback
+- Powershell
+- Billing
+- AWS
+modified_time: '2014-08-10T14:25:58.427-04:00'
+thumbnail: http://4.bp.blogspot.com/-swhtMYEIAsA/U-Zo17BNUpI/AAAAAAAAAUg/rmZeaFVcLgs/s72-c/AddTags.png
+blogger_id: tag:blogger.com,1999:blog-5050074367798755574.post-9159033601633447195
+blogger_orig_url: http://blog.brianbeach.com/2014/08/decoding-your-aws-bill-part-2.html
+---
+
+It took 6 months but I finally got time to continue the series on Decoding Your AWS bill. &nbsp;In the <a href="http://blog.brianbeach.com/2014/01/decoding-your-aws-bill-part-1.html">last post</a>, we used PowerShell to download and query the monthly bill. &nbsp;In this post we use tags to create a cost allocation report. &nbsp;In the next, and final post in this series, I will show you how to load the hourly detail report into SQL Server.<br />
+<br />
+Let's assume that we have multiple project teams at our company and they all have servers running in the same AWS account. &nbsp;We want to "charge back" each team for their usage. &nbsp;We begin by tagging each instance with a project name (see figure below). &nbsp;Notice that I also include a name and owner. <br />
+<br />
+<div class="separator" style="clear: both; text-align: center;">
+<a href="http://4.bp.blogspot.com/-swhtMYEIAsA/U-Zo17BNUpI/AAAAAAAAAUg/rmZeaFVcLgs/s1600/AddTags.png" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" src="http://4.bp.blogspot.com/-swhtMYEIAsA/U-Zo17BNUpI/AAAAAAAAAUg/rmZeaFVcLgs/s1600/AddTags.png" height="203" width="400" /></a></div>
+<br />
+<br />
+This is good start, but we learned in part one that charges are allocated to the instances as well as the volumes and network interfaces that are attached to them. &nbsp;Therefore, we have to tag the resources as well as the instance itself. &nbsp;It is probably unrealistic to ask our users to tag all the resources so let's create a script that copies tags from the instance any resources attached to it. &nbsp;This way our users only have to remember to tag their instances.<br />
+<br />
+The script below will read all of the tags from the instance and copy them to each resource. &nbsp;I have something very similar scheduled to run once a day on each of my accounts.<br />
+<br />
+<pre class="brush: powershell;">(Get-EC2Instance).Instances | % {
+
+    $Instance = $_
+
+    #First, get the tags from each instance
+    $NameTag = $Instance.Tags | Where-Object { $_.Key -eq 'Name' }
+    $OwnerTag = $Instance.Tags | Where-Object { $_.Key -eq 'Owner' }
+    $ProjectTag = $Instance.Tags | Where-Object { $_.Key -eq 'Project' }
+
+    $Instance.BlockDeviceMappings | % {
+        #Copy the tags to each volume
+        If($NameTag -ne $null) {New-EC2Tag -Resources $_.Ebs.VolumeId -Tag $NameTag}
+        If($OwnerTag -ne $null) {New-EC2Tag -Resources $_.Ebs.VolumeId -Tag $OwnerTag}
+        If($ProjectTag -ne $null) {New-EC2Tag -Resources $_.Ebs.VolumeId -Tag $ProjectTag}
+    }
+
+    $Instance.NetworkInterfaces | % {
+        #Copy the tags to each NIC
+        If($NameTag -ne $null) {New-EC2Tag -Resources $_.NetworkInterfaceId -Tag $NameTag}
+        If($OwnerTag -ne $null) {New-EC2Tag -Resources $_.NetworkInterfaceId -Tag $OwnerTag}
+        If($ProjectTag -ne $null) {New-EC2Tag -Resources $_.NetworkInterfaceId -Tag $ProjectTag}
+    }
+}
+</pre>
+<br />
+This is a good start, but it will not really scale well. &nbsp;It makes an API call for ever resource every time we run it. &nbsp;It will work well for a handful of instances, but as we add more instances the script will take longer and longer to run. &nbsp;It would be better to cache the tags collection and only change update those resources that need to be changed. &nbsp;Here is a much better version.<br />
+<br />
+<pre class="brush: powershell;">$AllTags = Get-EC2Tag
+
+Function Rectify-Tag {
+    #This function only updates a tag if the current value is not correct
+    Param ($ResourceId, $Tag)
+    #Find the current tag in the cached collection
+    $OldTag = $AllTags | Where-Object {(($_.ResourceId -eq $ResourceId) -and ($_.Key -eq $Tag.Key))}
+    If(($OldTag -eq $null) -or ($OldTag.Value -ne $Tag.Value)) {
+        #The currrent tag is wrong, let's fix it.
+        New-EC2Tag -Resources $ResourceId -Tag $Tag
+    }
+}
+
+(Get-EC2Instance).Instances | % {
+
+    $Instance = $_
+
+    #First, get the tags from each instance
+    $NameTag = $Instance.Tags | Where-Object { $_.Key -eq 'Name' }
+    $OwnerTag = $Instance.Tags | Where-Object { $_.Key -eq 'Owner' }
+    $ProjectTag = $Instance.Tags | Where-Object { $_.Key -eq 'Project' }
+
+    $Instance.BlockDeviceMappings | % {
+        #Copy the tags to each volume
+        If($NameTag -ne $null) {Rectify-Tag -ResourceId $_.Ebs.VolumeId -Tag $NameTag}
+        If($OwnerTag -ne $null) {Rectify-Tag -ResourceId $_.Ebs.VolumeId -Tag $OwnerTag}
+        If($ProjectTag -ne $null) {Rectify-Tag -ResourceId $_.Ebs.VolumeId -Tag $ProjectTag}
+    }
+
+    $Instance.NetworkInterfaces | % {
+        #Copy the tags to each NIC
+        If($NameTag -ne $null) {Rectify-Tag -ResourceId $_.NetworkInterfaceId -Tag $NameTag}
+        If($OwnerTag -ne $null) {Rectify-Tag -ResourceId $_.NetworkInterfaceId -Tag $OwnerTag}
+        If($ProjectTag -ne $null) {Rectify-Tag -ResourceId $_.NetworkInterfaceId -Tag $ProjectTag}
+    }
+}</pre>
+<br />
+Now we have to add the tags we created to our reports. &nbsp;I assume at this point that you have billing reports enabled. &nbsp;If not, see my <a href="http://blog.brianbeach.com/2014/01/decoding-your-aws-bill-part-1.html">prior blog post</a>. &nbsp;Log into the web console using your account credentials (not IAM credentials) and click on your name in the top right corner. &nbsp;From the dropdown, click "Billing and Cost Management." &nbsp;Choose "Preferences" from the menu down the left side of the screen. &nbsp;Finally, click the "Manage Report Tags" link toward the end of the screen.<br />
+<br />
+Now, find the tags you want to include in the report (see the figure below). &nbsp;Make sure you include the project tag. <br />
+<br />
+<div class="separator" style="clear: both; text-align: center;">
+<a href="http://3.bp.blogspot.com/-8uuUCBM6B2s/U-Z0VOefSNI/AAAAAAAAAUw/Klbg5aNHdQU/s1600/AddTags2.png" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" src="http://3.bp.blogspot.com/-8uuUCBM6B2s/U-Z0VOefSNI/AAAAAAAAAUw/Klbg5aNHdQU/s1600/AddTags2.png" height="286" width="400" /></a></div>
+<br />
+<br />
+<br />
+<br />
+Now we can download and query the report just like we did in the <a href="http://blog.brianbeach.com/2014/01/decoding-your-aws-bill-part-1.html">last post</a>. &nbsp;The only change is that we are going to use the&nbsp;<span style="background-color: white; color: blue; font-family: Consolas, 'Bitstream Vera Sans Mono', 'Courier New', Courier, monospace; font-size: 13px; line-height: 14.519999504089355px; white-space: pre;">"$AccountId-aws-cost-allocation-$Year-$Month.csv"</span>&nbsp;report rather than the&nbsp;<span style="background-color: white; color: blue; font-family: Consolas, 'Bitstream Vera Sans Mono', 'Courier New', Courier, monospace; font-size: 13px; line-height: 14.519999504089355px; white-space: pre;">"$AccountId-aws-billing-csv-$Year-$Month.csv"</span>&nbsp;report we used before. <br />
+<br />
+In addition, note that the custom tags we added will appear in the report as user:tag. &nbsp;So our Project tag will appear as user:Project. &nbsp;Therefore, if we wanted to return all the costs associated with the ERP project we would use a PowerShell query like this:<br />
+<br />
+<pre class="brush: powershell;">$PayerLineItems | &nbsp;Where-Object {$_.'user:Project' -eq 'ERP'} | Measure-Object TotalCost -Sum
+</pre>
+<br />
+Now, we have a little problem. &nbsp;You may notice that if you add up all costs associated to all projects, it does not sum to the invoice total. &nbsp;This is expected. &nbsp;There are a few costs we did not capture. &nbsp;First, we only tagged EC2. &nbsp;If you want to allocate other services, you will need to develop a similar strategy to the one we used above for EC2. &nbsp;Second, you may have a support contract that adds 10% to the bill. &nbsp;Third, there are some EC2 costs, like snapshots that do not include tags in the report. &nbsp;There is nothing we do we these last two, but allocate them to the projects as overhead. &nbsp;The script below will do just that. &nbsp;I'm not going to go into detail, but you can look though my script to understand it.<br />
+<br />
+<pre class="brush: powershell;">Set-AWSCredentials LAB
+
+Function Get-CostAllocationReport {
+    Param(
+        [string][parameter(mandatory=$false)]$AccountId,
+        [string][parameter(mandatory=$false)]$BucketName, 
+        [string][parameter(mandatory=$false)]$Month, 
+        [string][parameter(mandatory=$false)]$Year
+    )
+
+
+    #If no BucketName was specified, assume it tis the same as the account alias
+    $BucketName = Get-IAMAccountAlias
+
+    #If no AccountId was specified, use the account of the current user
+    $AccountID = (Get-IAMUser).ARN.Replace('arn:aws:iam::','').Substring(0,12)
+    
+    #If no month and year were specified, use last month
+    If([System.String]::IsNullOrEmpty($Month)) {$Month = If((Get-Date).Month -eq 1){12}Else{(Get-Date).Month}} 
+    If([System.String]::IsNullOrEmpty($Year)) {$Year = If($Month -eq 12){(Get-Date).Year - 1}Else{(Get-Date).Year}} 
+    $Month = "{0:D2}" -f [int]$Month #Pad single digit with 0 
+
+    #Get lastest report 
+    $Key = "$AccountId-aws-cost-allocation-$Year-$Month.csv" 
+    $FileName = "$env:TEMP\$AccountId-aws-cost-allocation-$Year-$Month.csv" 
+
+    #Download the report from S3
+    If(Test-Path $FileName) {Remove-Item $FileName}
+    $Null = Read-S3Object -BucketName $BucketName -Key $Key -File $FileName 
+
+    #Stip off the first line of the file #Don't see your tags in the report? New tags are excluded by default - go to https://portal.aws.amazon.com/gp/aws/developer/account?action=cost-allocation-report to update your cost allocation keys.
+    $Temp = Get-Content -Path $FileName | Select -Skip 1 
+    $Temp | Set-Content -Path $FileName
+
+    Import-Csv $FileName 
+}
+
+$Report = Get-CostAllocationReport
+
+Write-Host "Statement total =" ($Report | Where-Object {$_.RecordType -eq 'StatementTotal'}).TotalCost
+$PayerLineItems = $Report | Where-Object {$_.RecordType -eq 'PayerLineItem'} 
+
+$Summary = $PayerLineItems | Group-Object -Property 'user:Project' | % { 
+    New-Object psobject -Property @{ 
+        Project = $_.Name.Trim(); 
+        TotalCost = ($_.Group | Measure-Object TotalCost -Sum).Sum;
+    }
+} 
+
+$AllocatedCost = ($PayerLineItems |  Where-Object {$_.'user:Project' -ne ''} | Measure-Object TotalCost -Sum).Sum
+$UnallocatedCost = ($PayerLineItems |  Where-Object {$_.'user:Project' -eq ''} | Measure-Object TotalCost -Sum).Sum
+
+$ProjectAllocation = $PayerLineItems | Where-Object {$_.'user:Project' -ne ''} | Group-Object -Property 'user:Project' | % { 
+    $DirectCost = ($_.Group | Measure-Object TotalCost -Sum).Sum
+    $AllocationRate = $DirectCost / $AllocatedCost;
+    $IndirectCost = $UnallocatedCost * $AllocationRate;
+
+    New-Object psobject -Property @{ 
+        Project = $_.Name.Trim(); 
+        DirectCost = $DirectCost;
+        Overhead = $IndirectCost;
+        TotalCost = $DirectCost + $IndirectCost;
+    }
+} 
+
+$ProjectAllocation | Format-Table Project, DirectCost, Overhead, TotalCost -AutoSize
+</pre>
+<br />
+When you run this script it should output the statement total and a table showing the costs allocated to each project. &nbsp;Similar to the the following.<br />
+<br />
+<pre>Statement total = 2317.048424386140
+
+Project   DirectCost          Overhead        TotalCost
+-------   ----------          --------        ---------
+ERP       468.191124  25.2253642231116 493.416488223112
+CRM      1181.834959  63.6753149817962  1245.5102739818
+DotCom    149.640772    8.062397561231 157.703169561231
+ITOM      398.925069  21.4934236199978 420.418492619998
+</pre>
+<br />
+That's it for this post. &nbsp;In the <a href="http://blog.brianbeach.com/2014/08/decoding-your-aws-bill-part-3-loading.html">next post </a>we use the hourly report to populate a warehouse in SQL Server. 

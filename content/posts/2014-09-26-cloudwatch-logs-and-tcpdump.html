@@ -1,0 +1,37 @@
+---
+layout: post
+title: CloudWatch Logs and TCPDump
+date: '2014-09-26T13:42:00.001-04:00'
+author: Brian
+tags:
+- CloudWatch
+- AWS
+- CLI
+modified_time: '2014-12-14T15:09:15.963-05:00'
+blogger_id: tag:blogger.com,1999:blog-5050074367798755574.post-2420245381233047806
+blogger_orig_url: http://blog.brianbeach.com/2014/09/cloudwatch-logs-and-tcpdump.html
+---
+
+I was recently debugging an issue with a fleet of Apache web servers. &nbsp;I needed to watch for some low level network events we felt might be causing an issue (TCP resets, etc.). &nbsp;I thought CloudWatch Logs would be a cool, albeit unnecessary, solution. <br />
+<br />
+<i>NOTE: I found a much cleaner way to do this presented <a href="http://blog.brianbeach.com/2014/09/cloudwatch-logs-push.html">here</a>.</i><br />
+<br />
+The awslogs package/daemon can be configured to upload any log file. &nbsp;Just add a new configuration block to&nbsp;/etc/awslogs/awslogs.conf. &nbsp;For example, the configuration below says to upload the contents of /var/log/tcpdump to a stream identified with the servers instance id in a log group called NetworkTrace. &nbsp;Note that the group and stream must be created on the AWS console first.<br />
+<pre  class="brush: text;">
+[/var/log/tcpdump]
+file = /var/log/tcpdump
+log_group_name = NetworkTrace
+log_stream_name = {instance_id}
+datetime_format = &nbsp;%Y-%m-%d:%H:%M:%S.%f</pre>
+<br />
+With that done, you can start tcptrace and have it dump to a file. &nbsp;But, by default, tcp trace does not include the full date and time in each record. &nbsp;You need to include the -tttt option to so that awslogs can parse the date and time correctly. &nbsp;The -tttt option will use the format 2014-09-24 15:20:29.522949.<br />
+<br />
+Now simply start a background process to dump the trace to a file and you should start to see events in CloudWatch. &nbsp;For example, this will capture everything with minimal detail.<br />
+<pre class="brush: bash;">
+sudo tcpdump -tttt &gt;&gt; /var/log/tcpdump &amp;
+</pre>
+If you want to capture more detail, you should filter it for only some events. &nbsp;For example, the this will capture all traffic on port 80 including a hex dump of the data. <br />
+<br />
+<pre class="brush: text;">
+sudo tcpdump -tttt -nnvvXS tcp port 80 &gt;&gt; /var/log/tcpdump &amp;
+</pre>

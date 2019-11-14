@@ -1,0 +1,141 @@
+---
+layout: post
+title: Fun with AWS CloudTrail and SQS
+date: '2014-01-20T20:50:00.001-05:00'
+author: Brian
+tags:
+- Powershell
+- CloudTrail
+- AWS
+- SNS
+- SQS
+modified_time: '2014-01-20T21:14:11.669-05:00'
+thumbnail: http://4.bp.blogspot.com/-kAPmw1mszrs/Ut3R33T7MXI/AAAAAAAAASY/8hQ-YjZ6GFU/s72-c/Overview.png
+blogger_id: tag:blogger.com,1999:blog-5050074367798755574.post-1623020368049120149
+blogger_orig_url: http://blog.brianbeach.com/2014/01/fun-with-aws-cloudtrail-and-sqs.html
+---
+
+CloudTrail is new service that logs all AWS API calls to an S3 bucket.  While the obvious use case is creating an audit trail for security compliance, there are many other purposes.  For example, we might use the CloudTrail logs to keep a Change Management Database (CMDB) up date by looking for all API calls that create, modify or delete an instance.  In this exercise I’ll use CloudTrail, Simple Storage Service (S3), Simple Notifications Services (SNS), Simple Queue Service (SQS) and PowerShell to parse CloudTrail logs looking for new events.<br />
+The picture below describes the solution.  CloudTrail periodically writes log files to an S3 bucket (1).  When each file is written, CloudTrail also sends out an SNS notification (2).  SQS is subscribing to the notification (3) and will hold it until we get around to processing it.  When the PowerShell script runs, it pools the queue (4) for new CloudTrail notifications.  If there are new notifications, the script downloads the log file (5) and processes it.  If the script finds interesting events in the log file, it writes them to another queue (6).  Now, other applications (like our CMDB) can subscribe to just the events it needs and does not have bother processing the log files.<br />
+<div class="separator" style="clear: both; text-align: center;">
+</div>
+<br />
+<div class="separator" style="clear: both; text-align: center;">
+<a href="http://4.bp.blogspot.com/-kAPmw1mszrs/Ut3R33T7MXI/AAAAAAAAASY/8hQ-YjZ6GFU/s1600/Overview.png" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" src="http://4.bp.blogspot.com/-kAPmw1mszrs/Ut3R33T7MXI/AAAAAAAAASY/8hQ-YjZ6GFU/s1600/Overview.png" height="162" width="320" /></a></div>
+Let’s start by Configuring CloudTrail.  I just created a new S3 bucket and enabled SNS notifications creating a new topic named “CloudTrail”.  <br />
+<div class="separator" style="clear: both; text-align: center;">
+<a href="http://3.bp.blogspot.com/-pwbkwTGw0s4/Ut3R38d2OUI/AAAAAAAAASs/GJDzesHeAFs/s1600/CloudTrail.png" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" src="http://3.bp.blogspot.com/-pwbkwTGw0s4/Ut3R38d2OUI/AAAAAAAAASs/GJDzesHeAFs/s1600/CloudTrail.png" height="186" width="320" /></a></div>
+<br />
+Now let’s create a new queue called “CloudTrail”.  I just left the default values.  This queue will hold notifications that a new CloudTrail log file has been written.  You should also create queues for each of the events you care about.  I created a queue for instances (to update the CMDB) and one for users (to notify the security team of new users).   <br />
+<div class="separator" style="clear: both; text-align: center;">
+<a href="http://1.bp.blogspot.com/-TR1LzahohBM/Ut3R4QFGStI/AAAAAAAAAS0/n6uN3k4nXcM/s1600/Queue.png" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" src="http://1.bp.blogspot.com/-TR1LzahohBM/Ut3R4QFGStI/AAAAAAAAAS0/n6uN3k4nXcM/s1600/Queue.png" height="222" width="320" /></a></div>
+<br />
+Next, we need to subscribe our “CloudTrail” SQS queue to the “CloudTrail” SNS topic.  Right click on the CloudTrail queue and choose “Subscribe Queue to SNS Topic.”  Then choose the “CloudTrail” topic from the dropdown and click Subscribe.<br />
+<div class="separator" style="clear: both; text-align: center;">
+<a href="http://1.bp.blogspot.com/-Swbv8FYVoh4/Ut3R4USEkkI/AAAAAAAAAS8/U6FrnTcwrt8/s1600/Topic.png" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" src="http://1.bp.blogspot.com/-Swbv8FYVoh4/Ut3R4USEkkI/AAAAAAAAAS8/U6FrnTcwrt8/s1600/Topic.png" height="125" width="320" /></a></div>
+<br />
+The messages in the queue will look like the example below.  The CloudTrail message (yellow) is wrapped in a SNS notification (green) which in turn is wrapped in an SQS message (blue).  Our script will need to unwrap this structure to get to the CloudTrail message.  <br />
+<div class="separator" style="clear: both; text-align: center;">
+<a href="http://3.bp.blogspot.com/-OyPbjRHcvU0/Ut3R39f4Z9I/AAAAAAAAASw/x5Jch1ZPc1A/s1600/Message.png" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" src="http://3.bp.blogspot.com/-OyPbjRHcvU0/Ut3R39f4Z9I/AAAAAAAAASw/x5Jch1ZPc1A/s1600/Message.png" height="174" width="320" /></a></div>
+<br />
+Let’s begin our PowerShell script by defining the queues.  First we need the URL of our CloudTrail queue.<br />
+<pre class="brush: powershell;">$CloudTrailQueue = 'https://sqs.us-east-1.amazonaws.com/999999999999/CloudTrail'</pre>
+In addition, we need a list of CloudTrail log events we are interested in, along with which Queue to write them to.  I used a hash table for this.<br />
+<pre class="brush: powershell;">$InterestingEvents = @{
+    'RunInstances'            = 'https://sqs.us-east-1.amazonaws.com/999999999999/Instances';
+    'ModifyInstanceAttribute' = 'https://sqs.us-east-1.amazonaws.com/999999999999/Instances';
+    'TerminateInstances'      = 'https://sqs.us-east-1.amazonaws.com/999999999999/Instances';
+    'CreateUser'              = 'https://sqs.us-east-1.amazonaws.com/999999999999/Users';
+    'DeleteUser'              = 'https://sqs.us-east-1.amazonaws.com/999999999999/Users';
+}</pre>
+Now we can get a batch of messages from the queue and use a loop to process them one by one.<br />
+<pre class="brush: powershell;">$SQSMessages = Receive-SQSMessage $CloudTrailQueue 
+$SQSMessages | % { $SQSMessage = $_  …</pre>
+Remember that the message we are interested in is wrapped in both an SNS and SQS message.  Therefore, we have to unpack the message which is stored as JSON.<br />
+<pre class="brush: powershell;">$SNSMessage = $SQSMessage.Body | ConvertFrom-Json
+$CloudTrailMessage = $SNSMessage.Message | ConvertFrom-Json</pre>
+Also remember that the CloudTrail message does not contain the log file.  Rather the log file is stored in S3 and the message contains the name of the bucket and path to the log file.  We next have to download the cloud trail log file from S3 and save it to the temp folder.<br />
+<pre class="brush: powershell;">Read-S3Object -BucketName $CloudTrailMessage.s3Bucket -Key $CloudTrailMessage.s3ObjectKey[0] -File "$env:TEMP\CloudTrail.json.gz"</pre>
+The log file is JSON format, but compressed using gzip.  Therefore, I am using WinZip to uncompress the JSON file.  If you don’t have WinZip, you can replace this line with your favorite tool.<br />
+<pre class="brush: powershell;">Start-Process -Wait -FilePath 'C:\Program Files\WinZip\winzip32.exe' '-min -e -o CloudTrail.json.gz' -WorkingDirectory $env:TEMP</pre>
+Now we finally have the detailed log file.  Load it and loop over the records.<br />
+<pre class="brush: powershell;">$CloudTrailFile = Get-Content "$env:TEMP \CloudTrail.json" -Raw |  ConvertFrom-Json
+$CloudTrailFile.Records | % { $CloudTrailRecord = $_ …</pre>
+I check the event type of each record against the hash table of events we are interested in.   
+<br />
+<pre class="brush: powershell;">$QueueUrl = $InterestingEvents[$CloudTrailRecord.eventName]
+If($QueueUrl -ne $null){
+                $Response = Send-SQSMessage -QueueUrl $QueueUrl -MessageBody ($CloudTrailRecord | ConvertTo-Json)
+}</pre>
+Finally, we remove the message from the queue so we don't process it again<br />
+<pre class="brush: powershell;">Remove-SQSMessage -QueueUrl $CloudTrailQueue -ReceiptHandle $SQSMessage.ReceiptHandle –Force</pre>
+Here is the full script.<br />
+<pre class="brush: powershell;">Set-AWSCredentials LAB
+
+$CloudTrailQueue = 'https://sqs.us-east-1.amazonaws.com/999999999999/CloudTrail'
+
+$InterestingEvents = @{
+    'RunInstances'            = 'https://sqs.us-east-1.amazonaws.com/999999999999/Instances';
+    'ModifyInstanceAttribute' = 'https://sqs.us-east-1.amazonaws.com/999999999999/Instances';
+    'TerminateInstances'      = 'https://sqs.us-east-1.amazonaws.com/999999999999/Instances';
+    'CreateUser'              = 'https://sqs.us-east-1.amazonaws.com/999999999999/Users';
+    'DeleteUser'              = 'https://sqs.us-east-1.amazonaws.com/999999999999/Users';
+}
+
+#First, let's get a batch of up to 10 messages from the queue
+$SQSMessages = Receive-SQSMessage $CloudTrailQueue -VisibilityTimeout 60 -MaxNumberOfMessages 10
+Write-Host "Found" $SQSMessages.Count "messages in the queue."
+
+
+$SQSMessages | % {
+    Try {
+
+        $SQSMessage = $_
+
+        #Second, let's unpack the SQS message to get the SNS message
+        $SNSMessage = $SQSMessage.Body | ConvertFrom-Json
+
+        #Third, we unpack the SNS message to get the original CloudTrail message
+        $CloudTrailMessage = $SNSMessage.Message | ConvertFrom-Json
+
+        #Fourth, we download the cloud trail log file from S3 and save it to the temp folder
+        $Null = Read-S3Object -BucketName $CloudTrailMessage.s3Bucket -Key $CloudTrailMessage.s3ObjectKey[0] -File "$env:TEMP\CloudTrail.json.gz"
+
+        #Fifth, we uncompress the CloudTrail JSON file.  I'm using winzip here.
+        Start-Process -Wait -FilePath 'C:\Program Files\WinZip\winzip32.exe' '-min -e -o CloudTrail.json.gz' -WorkingDirectory $env:TEMP
+
+        #Read the JSON file from disk
+        $CloudTrailFile = Get-Content "$env:TEMP\\CloudTrail.json" -Raw |  ConvertFrom-Json
+
+        #Loop over all the records in the log file
+        $CloudTrailFile.Records | % {
+
+            $CloudTrailRecord = $_
+            
+            #Check each event against our hash table of interesting events 
+            $QueueUrl = $InterestingEvents[$CloudTrailRecord.eventName]
+            If($QueueUrl -ne $null){
+                Write-Host "Found event " $CloudTrailRecord.eventName
+        
+                #If this event is interesting, write to the corresponding queue
+                $Response = Send-SQSMessage -QueueUrl $QueueUrl -MessageBody ($CloudTrailRecord | ConvertTo-Json)
+            }
+        
+        }
+
+        #Finally, remove the message from the queue so we don't process it again
+        Remove-SQSMessage -QueueUrl $CloudTrailQueue -ReceiptHandle $SQSMessage.ReceiptHandle -Force
+     }
+     Catch
+     {
+        #Log errors to the console
+        Write-Host "Oh No!" $_
+     }
+     Finally
+     {
+        #Clean up the temp folder
+        If(Test-Path "$env:TEMP\CloudTrail.json.gz") {Remove-Item "$env:TEMP\CloudTrail.json.gz"}
+        If(Test-Path "$env:TEMP\CloudTrail.json") {Remove-Item "$env:TEMP\CloudTrail.json"}
+     }
+}
+</pre>

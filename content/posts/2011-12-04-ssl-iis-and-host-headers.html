@@ -1,0 +1,103 @@
+---
+layout: post
+title: SSL, IIS, and Host Headers
+date: '2011-12-04T13:04:00.000-05:00'
+author: Brian
+tags:
+- TLS
+- Host Name
+- HTTP
+- SSL
+- Host Header
+- IIS
+modified_time: '2013-01-09T18:29:34.287-05:00'
+thumbnail: http://1.bp.blogspot.com/-dL8NHsqBbnc/Tt5aORsG_BI/AAAAAAAAAEs/o3IdwWX4FqU/s72-c/HostHeader-A.jpg
+blogger_id: tag:blogger.com,1999:blog-5050074367798755574.post-6585576067553238629
+blogger_orig_url: http://blog.brianbeach.com/2011/12/ssl-iis-and-host-headers.html
+---
+
+<br />
+There is a lot of confusion about how IIS handles SSL. &nbsp;With all the confusion out there, I thought I should put together a quick post. &nbsp;This post will also explain the error message: At least one other site is using the same HTTPS binding and the binding is configured with a different certificate.<br />
+<br />
+My discussions this week were specific to SharePoint, but the confusion is with host headers in IIS. &nbsp;The crux of the issue is that when IIS receives a request, the host header is encrypted. &nbsp;Therefore, IIS cannot determine which web site to route the request to.<br />
+<br />
+Let’s start with a simple example without SSL. &nbsp;Say that I have two URLs http://www.brianbeach.com and http://blog.brianbeach.com. &nbsp;If I want to host them both on the same server, I have to set up bindings. &nbsp;I can tell IIS to listen on a specific IP address and port combination, or I can use host headers. &nbsp;See the image below. <br />
+<br />
+<a href="http://1.bp.blogspot.com/-dL8NHsqBbnc/Tt5aORsG_BI/AAAAAAAAAEs/o3IdwWX4FqU/s1600/HostHeader-A.jpg" imageanchor="1" style="clear: left; float: left; margin-bottom: 1em; margin-right: 1em;"><img border="0" height="79" src="http://1.bp.blogspot.com/-dL8NHsqBbnc/Tt5aORsG_BI/AAAAAAAAAEs/o3IdwWX4FqU/s320/HostHeader-A.jpg" width="320" /></a><br />
+<br />
+<br />
+<br />
+<br />
+<br />
+If we look at the individual bindings, notice that IIS is listening on all IP addresses for any request to www.brianbeach.com on port 80.<br />
+<br />
+<a href="http://2.bp.blogspot.com/-Fpy0ujDJFyU/Tt5aOvaT_NI/AAAAAAAAAE0/f4OkZylXi28/s1600/HostHeader-B.jpg" imageanchor="1" style="clear: left; float: left; margin-bottom: 1em; margin-right: 1em;"><img border="0" height="175" src="http://2.bp.blogspot.com/-Fpy0ujDJFyU/Tt5aOvaT_NI/AAAAAAAAAE0/f4OkZylXi28/s320/HostHeader-B.jpg" width="320" /></a><br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+So, how does this work? &nbsp;When your browser requests a page from www.brianbeach.com, it first resolves the IP address from DNS. &nbsp;Let’s say that IP address 192.168.1.2. &nbsp;Then, it sends a TCP packet to 192.168.1.2 on port 80. &nbsp;The body of the request looks like this.<br />
+<blockquote class="tr_bq">
+<pre>GET http://www.brianbeach.com/
+HTTP/1.1
+Accept: text/html, application/xhtml+xml, */*
+Accept-Language: en-US
+User-Agent: Mozilla/5.0
+Accept-Encoding: gzip, deflate
+Connection: Keep-Alive
+Host: www.brianbeach.com
+</pre>
+</blockquote>
+When, IIS receives this request, it reads the last line, and routes it to the www.brianbeach.com site, based on bindings we configured above. <br />
+<br />
+Herein lies the problem. &nbsp;Note that the host header (Host: www.brianbeach.com) only exists inside the body of the message. &nbsp;If I sent this request over SSL, IIS would not be able to read the host header until it decrypted the message. &nbsp;And, IIS cannot decrypt the message until it knows which site’s private key to use. &nbsp;Alas, a catch 22.<br />
+<br />
+Therefore, it would seem that I cannot use host headers with SSL. &nbsp;In fact, notice that when I create an http binding, the host header is disabled. &nbsp;So, it would seem that, if we use SSL, we can only create bindings based on the IP address and port. &nbsp;In general this is true, but there is an exception: wildcard certificates. <br />
+<br />
+<a href="http://3.bp.blogspot.com/-r2En8Z7-Hy4/Tt5aO2O31LI/AAAAAAAAAE8/wkBNxXZ-1CI/s1600/HostHeader-C.jpg" imageanchor="1" style="clear: left; float: left; margin-bottom: 1em; margin-right: 1em;"><img border="0" height="175" src="http://3.bp.blogspot.com/-r2En8Z7-Hy4/Tt5aO2O31LI/AAAAAAAAAE8/wkBNxXZ-1CI/s320/HostHeader-C.jpg" width="320" /></a><br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+A wildcard certificate is a certificate that can be used to secure multiple sub-domains. &nbsp;For example, a wildcard certificate, created for *.brianbeach.com can be used for both www.brianbeach.com and blog.brianbeach.com. &nbsp;Notice that when I select a wildcard certificate in IIS, the host header textbox is again enabled.<br />
+<br />
+<a href="http://1.bp.blogspot.com/--jCxS3RzSRo/Tt5aPL-fJKI/AAAAAAAAAFE/LpqCAV1ru2I/s1600/HostHeader-D.jpg" imageanchor="1" style="clear: left; float: left; margin-bottom: 1em; margin-right: 1em;"><img border="0" height="176" src="http://1.bp.blogspot.com/--jCxS3RzSRo/Tt5aPL-fJKI/AAAAAAAAAFE/LpqCAV1ru2I/s320/HostHeader-D.jpg" width="320" /></a><br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+If you have been paying attention, you should be asking yourself: How does IIS know which certificate to use? &nbsp;Now I have two sites that both use the same certificate, but IIS still needs to decrypt the message to determine if it is destined for one of the two site that use this certificate. &nbsp;We could be hosting other site after all. <br />
+<br />
+IIS does this based on the port number. &nbsp; You can only configure one certificate per port. &nbsp;First, IIS looks up the certificate based on the port the message was received on. &nbsp;Next, it decrypts the message and reads the host header. &nbsp;Finally, it uses the host header to route your request to the correct web site.<br />
+<br />
+Note: that this only works with wildcard certificates and subdomains. &nbsp;I cannot host www.brianbeach.com and www.someothersite.com on the same server, because they do not use the same certificate. &nbsp;Also, note that wildcard certificates only work for a single level. &nbsp;Therefore, I cannot host www.blog.brianbeach.com using *.brianbeach.com.<br />
+<br />
+<br />
+BTW: Have you ever received the warning message below? &nbsp;When you try to configure a new https binding on a port that is already in use by another site, IIS warns you that you are about to change the SSL certificate for all sites listening on that port.<br />
+<br />
+<div class="separator" style="clear: both; text-align: center;">
+<a href="http://1.bp.blogspot.com/-jDzOp-XqVwo/Tt5aPZDk7HI/AAAAAAAAAFM/_TFsAioby9Q/s1600/HostHeader-E.jpg" imageanchor="1" style="clear: left; float: left; margin-bottom: 1em; margin-right: 1em;"><img border="0" height="129" src="http://1.bp.blogspot.com/-jDzOp-XqVwo/Tt5aPZDk7HI/AAAAAAAAAFM/_TFsAioby9Q/s320/HostHeader-E.jpg" width="320" /></a></div>
+<br />
+<div>
+<br /></div>
