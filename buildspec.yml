@@ -19,8 +19,7 @@ phases:
       - echo Entered the build phase ...
       - echo Build started on `date`
       - cd $CODEBUILD_SRC_DIR
-      - rm -f buildspec.yml && rm -f .git && rm -f README.md
-      - hugo --quiet
+      - hugo
     finally:
       - echo Building the HTML files finished
 artifacts:
