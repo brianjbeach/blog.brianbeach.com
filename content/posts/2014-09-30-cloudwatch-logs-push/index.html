@@ -10,6 +10,7 @@ tags:
 modified_time: '2014-12-14T15:09:50.801-05:00'
 blogger_id: tag:blogger.com,1999:blog-5050074367798755574.post-6675781719277883458
 blogger_orig_url: http://blog.brianbeach.com/2014/09/cloudwatch-logs-push.html
+url: /2014/09/cloudwatch-logs-push.html
 ---
 
 In my last post I used the awslogs daemon to push tcpdump events to AWS CloudWatch logs. &nbsp;At the time it felt silly to use a file on disk and a daemon to push events from an interactive session. &nbsp;Well I had some time to dig and I found a much cleaner way to do it without the daemon. <br />
@@ -17,17 +18,20 @@ In my last post I used the awslogs daemon to push tcpdump events to AWS CloudWat
 It turns out that CloudWatch logs is implemented as a plugin to the AWS CLI. &nbsp;The plugin can be configured to read from a file or you can simply pipe events directly yo it on the command line. <br />
 <br />
 You need to register the plugin in your config file (~/.aws/config). &nbsp;Mine looks like this. <br />
-<pre class="brush: text;">
+
+{{< highlight ini "linenos=table" >}}
 [plugins]
 cwlogs = cwlogs
 [default]
 region = us-east-1
 aws_access_key_id = XXXXXXXXXX
 aws_secret_access_key = YYYYYYYYYY
-</pre>
+{{< / highlight >}}
+
 <br />
 Now you can simply pipe data to "aws logs push." &nbsp;You need to specify the group stream and date format as parameters. &nbsp;And, of course, the group and stream must already exist in AWS. &nbsp;For example:
 <br />
-<pre class="brush: shell;">
+
+{{< highlight batch "linenos=table" >}}
 sudo tcpdump -tttt port 80 | aws logs push --log-group-name NetworkTrace --log-stream-name i-125731f9 --datetime-format '%Y-%m-%d:%H:%M:%S.%f'
-</pre>
+{{< / highlight >}}

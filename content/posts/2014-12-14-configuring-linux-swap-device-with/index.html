@@ -12,6 +12,7 @@ tags:
 modified_time: '2014-12-14T16:10:08.952-05:00'
 blogger_id: tag:blogger.com,1999:blog-5050074367798755574.post-3157521871124196596
 blogger_orig_url: http://blog.brianbeach.com/2014/12/configuring-linux-swap-device-with.html
+url: /2014/12/configuring-linux-swap-device-with.html
 ---
 
 <p>Cloud-Init is a set of Python scripts used to configure Linux instances when they boot in AWS.  Cloud-Init is included on Ubuntu and Amazon Linux AMIs.</p>  
@@ -20,7 +21,7 @@ blogger_orig_url: http://blog.brianbeach.com/2014/12/configuring-linux-swap-devi
 
 <p>One of the common examples is to mount devices when the instance boots.  An obvious example is to create a swap volume from the ephemeral disks that you are likely not using.  Here is a script that will create a swap volume on an m3.medium with its ephemeral volume attached at /dev/sdb.  (Note: even though you select /dev/sdb in the console, Linux will see it /dev/xvdb)</p>
 
-<pre class="brush: text;">
+{{< highlight yaml "linenos=table" >}}
 #cloud-config
 repo_update: true
 repo_upgrade: all
@@ -31,7 +32,7 @@ mounts:
 bootcmd:
  - mkswap /dev/xvdb
  - swapon /dev/xvdb
-</pre>
+{{< / highlight >}}
 
 <p>There are three parts to the script:  
 

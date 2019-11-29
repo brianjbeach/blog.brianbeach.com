@@ -8,6 +8,7 @@ modified_time: '2015-10-24T14:56:00.550-04:00'
 thumbnail: http://3.bp.blogspot.com/-NxyhT5Zbf-8/VhF7_SFOoPI/AAAAAAACcI8/DwvVrxbx19g/s72-c/wd_mycloud_ex2_gallery-100314584-large.png
 blogger_id: tag:blogger.com,1999:blog-5050074367798755574.post-5489443410761517503
 blogger_orig_url: http://blog.brianbeach.com/2015/10/my-cloud-ex2-backup-to-amazon-s3.html
+url: /2015/10/my-cloud-ex2-backup-to-amazon-s3.html
 ---
 
 <div class="separator" style="clear: both; text-align: left;">
@@ -15,7 +16,7 @@ With all the devices in the house it was finally time to invest in a NAS. I sett
 <div class="separator" style="clear: both; text-align: center;">
 <br /></div>
 <div class="separator" style="clear: both; text-align: center;">
-<a href="http://3.bp.blogspot.com/-NxyhT5Zbf-8/VhF7_SFOoPI/AAAAAAACcI8/DwvVrxbx19g/s1600/wd_mycloud_ex2_gallery-100314584-large.png" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" height="214" src="http://3.bp.blogspot.com/-NxyhT5Zbf-8/VhF7_SFOoPI/AAAAAAACcI8/DwvVrxbx19g/s320/wd_mycloud_ex2_gallery-100314584-large.png" width="320" /></a></div>
+<a href="wd_mycloud_ex2_gallery-100314584-large.png" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" src="wd_mycloud_ex2_gallery-100314584-large.png" /></a></div>
 <br />
 Overall I really like the EX2. It has great features for the price. My version came with two 4TB drives which I configured to mirror for redundancy (you can forgo redundancy and get 8TB of storage). &nbsp;The EX2 supports SMB and NFS. It can act a DLNA (I use an app called Vimu Player on my Fire TV) or iTunes server (unprotected audio only). For the more advanced user, you can also join Active Directory, act as an iSCSI target, and mount ISO images. The EX2 can backup to another EX2, Elephant Drive or Amazon S3. The rest of this post focuses on backup to S3 which is less than perfect, but with a little effort I have it running reliably.<br />
 <h2>
@@ -36,11 +37,17 @@ Configuration</h2>
 The first thing I created was an S3 bucket. There is noting special here, just accept the defaults. &nbsp;Then, I created the lifecycle policy described above. The configuration looks like this:<br />
 <br />
 <div class="separator" style="clear: both; text-align: center;">
-<a href="http://2.bp.blogspot.com/--Ekn4u3Rais/VhGLSH8EJ5I/AAAAAAACcJM/j9J5jXyv_L4/s1600/Lifecycle.png" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" height="385" src="http://2.bp.blogspot.com/--Ekn4u3Rais/VhGLSH8EJ5I/AAAAAAACcJM/j9J5jXyv_L4/s640/Lifecycle.png" width="640" /></a></div>
+    
+<a href="Lifecycle.png" imageanchor="1" style="margin-left: 1em; margin-right: 1em;">
+    <img border="0" height="385" src="Lifecycle.png" width="640" />
+</a></div>
+
 <br />
 Next, I needed an IAM user for the backup job on the EX2. I created a user policy that had only those rights needed by the backup job. &nbsp;This way, even if my EX2 were compromised, the attacker could never delete from my bucket or access other resources in my account. My policy looks like this. &nbsp;<br />
 <br />
-<pre class="brush: text;">{
+
+{{< highlight json "linenos=table" >}}
+{
     "Version": "2012-10-17",
     "Statement": [
         {
@@ -66,7 +73,8 @@ Next, I needed an IAM user for the backup job on the EX2. I created a user polic
         }
     ]
 }
-</pre>
+{{< / highlight >}}
+
 <br />
 Finally, I could configure the backup job on the EX2. The configuration above has been running for a while now. It still overwrites files that have not changed, but the lifecycle policy keeps them under control.<br />
 <br />

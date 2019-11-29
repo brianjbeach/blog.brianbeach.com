@@ -1,0 +1,150 @@
+---
+layout: post
+title: Cross-Account IAM Roles in Windows PowerShell
+date: '2015-01-28T15:00:00.000-05:00'
+author: Brian
+tags: 
+modified_time: '2015-10-24T15:11:31.469-04:00'
+blogger_id: tag:blogger.com,1999:blog-5050074367798755574.post-2169836279663931909
+blogger_orig_url: http://blog.brianbeach.com/2015/01/cross-account-iam-roles-in-windows.html
+url: /2015/01/cross-account-iam-roles-in-windows.html
+---
+
+<p style="text-align: center;color: red;">NOTE: This article is reposted from the AWS .Net Blog. &nbsp;Please post comments <a href="https://blogs.aws.amazon.com/net/post/Tx2QDSDTRED1T8H/Cross-Account-IAM-Roles-in-Windows-PowerShell">here</a>.</p>
+
+<p>
+ As a company’s adoption of Amazon Web Services (AWS) grows, most customers adopt a multi-account strategy. Some customers choose to create an account for each application, while others create an account for each business unit or environment (development, testing, production). Whatever the strategy, there is often a use case that requires access to multiple accounts at once. This post examines cross-account access and the AssumeRole API, known as <code>Use-STSRole</code> in Windows PowerShell.</p>
+<p>
+ A role consists of a set of permissions that grant access to actions or resources in AWS. An application uses a role by calling the AssumeRole API function. The function returns a set of temporary credentials that the application can use in subsequent function calls. Cross-account roles allow an application in one account to assume a role (and act on resources) in another account.</p>
+<p>
+ One common example of cross-account access is maintaining a configuration management database (CMDB). Most large enterprise customers have a requirement that all servers, including EC2 instances, must be tracked in the CMDB. Example Corp., shown in Figure 1, has a Payer account and three linked accounts: Development, Testing, and Production.</p>
+<p>
+ <img alt="" src="http://cdn.amazonblogs.com/net_awsblog/images/PowershellAssumeRoleFigure1.png" style="width: 550px; height: 464px;" /></p>
+<p>
+ Figure 1: Multiple Accounts Owned by a Single Customer</p>
+<p>
+ Note that linked accounts are not required to use cross-account roles, but they are often used together. You can use cross-account roles to access accounts that are not part of a consolidated billing relationship or between accounts owned by different companies. See the user guide to learn more about <a href="http://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/consolidated-billing.html">linked accounts and consolidated billing</a>.</p>
+<h2>
+ Scenario</h2>
+<p>
+ Bob, a Windows administrator at Example Corp., is tasked with maintaining an inventory of all the instances in each account. Specifically, he needs to send a list of all EC2 instances in all accounts to the CMDB team each night. He plans to create a Windows PowerShell script to do this.</p>
+<p>
+ Bob could create an IAM user in each account and hard-code the credentials in the script. Though this would be simple, hard-coding credentials is not the most secure solution. The AWS best practice is to <a href="http://docs.aws.amazon.com/IAM/latest/UserGuide/IAMBestPractices.html#use-roles-with-ec2">Use IAM roles</a>. Bob is familiar with <a href="http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html">IAM roles for Amazon EC2</a> and wants to learn more about <a href="http://docs.aws.amazon.com/IAM/latest/UserGuide/roles-walkthrough-crossacct.html">cross-account roles</a>.</p>
+<p>
+ Bob plans to script the process shown in Figure 2. The CMDB script will run on an EC2 instance using the <code>CMDBApplication </code>role. For each account, the script will call <code>Use-STSRole</code> to retrieve a set of temporary credentials for the <code>CMDBDiscovery</code> role. The script will then iterate over each region and call <code>Get-EC2Instance</code> using the <code>CMDBDiscovery</code> credentials to access the appropriate account and list all of its instances.</p>
+<p>
+ <img alt="" src="http://cdn.amazonblogs.com/net_awsblog/images/PowershellAssumeRoleFigure2.png" style="width: 338px; height: 424px;" /></p>
+<p>
+ Figure 2: CMDB Application and Supporting IAM Roles</p>
+<h2>
+ Creating IAM Roles</h2>
+<p>
+ Bob begins to build his solution by creating the IAM roles shown in Figure 3. The Windows PowerShell script will run on a new EC2 instance in the Payer account. Bob creates a <code>CMDBApplication</code> role in the Payer account. This role in used by the EC2Instance allowing the script to run without requiring IAM user credentials. In addition, Bob will create a <code>CMDBDiscovery </code>role in every account. The <code>CMDBDiscovery</code> role has permission to list (or “Discover”) the instances in that account.</p>
+<p>
+ <img alt="" src="http://cdn.amazonblogs.com/net_awsblog/images/PowershellAssumeRoleFigure3.png" style="width: 550px; height: 464px;" /></p>
+<p>
+ Figure 3: CMDB Application and Supporting IAM Roles</p>
+<p>
+ Notice that Bob has created two roles in the Payer account: <code>CMDBApplication </code>and <code>CMDBDiscovery</code>. You may be asking why he needs a cross-account role in the same account as the application. Creating the <code>CMDBDiscovery</code> role in every account makes the code easier to write because all accounts are treated the same. Bob can treat the Payer account just like any of the other accounts without a special code branch.</p>
+<p>
+ Bob first creates the Amazon EC2 role, <code>CMDBApplication</code>, in the Payer account. This role will be used by the EC2 instance that runs the Windows PowerShell script. Bob signs in to the AWS Management Console for the Payer account and follows the <a href="http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html">instructions</a> to create a new IAM Role for Amazon EC2 with the following custom policy.</p>
+<pre>
+{
+  &quot;Version&quot;: &quot;2012-10-17&quot;,
+  &quot;Statement&quot;: [
+    {
+      &quot;Effect&quot;: &quot;Allow&quot;,
+      &quot;Action&quot;: [&quot;sts:AssumeRole&quot;],
+      &quot;Resource&quot;: [&quot;*&quot;]
+    }
+  ]
+}
+</pre>
+<p>
+ Policy 1: Policy Definition for the CMDBApplication IAM Role</p>
+<p>
+ The <code>CMDBApplication</code> role grants a single permission, <code>sts:AssumeRole</code>, which allows the application to call the AssumeRole API to get temporary credentials for another account. Notice that Bob is following the best practice of <a href="http://docs.aws.amazon.com/IAM/latest/UserGuide/IAMBestPractices.html#grant-least-privilege">Least Privilege</a> and has assigned only one permission to the application.</p>
+<p>
+ Next, Bob creates a cross-account role called CMDBDiscovery in each of the accounts, including the Payer account. This role will be used to list the EC2 instances in that account. Bob signs in to the console for each account and follows the <a href="http://docs.aws.amazon.com/IAM/latest/UserGuide/cross-acct-access-walkthrough-createrole.html">instructions</a> to create a new IAM role for cross-account access. In the wizard, Bob supplies the account ID of the Payer account (111111111111 in our example) and specifies the following custom policy.</p>
+<p>
+ Note that when creating the role, there are two options. One provides access between accounts you own, and the other provides access from a third-party account. Third-party account roles include an <a href="http://docs.aws.amazon.com/STS/latest/UsingSTS/sts-delegating-externalid.html">external ID</a>, which is outside the scope of this article. Bob chooses the first option because his company owns both accounts.</p>
+<pre>
+{
+  &quot;Version&quot;: &quot;2012-10-17&quot;,
+  &quot;Statement&quot;: [
+    {
+      &quot;Effect&quot;: &quot;Allow&quot;,
+      &quot;Action&quot;: [&quot;ec2:DescribeInstances&quot;],
+      &quot;Resource&quot;: [&quot;*&quot;]
+    }
+  ]
+}
+</pre>
+<p>
+ Policy 2: Policy Definition for the CMDBDiscovery IAM Role</p>
+<p>
+ Again, this policy follows the best practice of least privilege and assigns a single permission,<code>ec2:DescribeInstances</code>, which allows the caller to list the EC2 instances in the account.</p>
+<h2>
+ Creating the CMDB Script</h2>
+<p>
+ With the IAM roles created, Bob next launches a new EC2 instance in the Payer account. This instance will use the <code>CMDBApplication </code>role. When the instance is ready, Bob signs in and creates a Windows PowerShell script that will list the instances in each account and region.</p>
+<p>
+ The first part of the script, shown in Listing 1, lists the instances in a given region and account. Notice that in addition to the account number and region, the function expects a set of credentials. These credentials represent the <code>CMDBDiscovery</code> role and will be retrieved from the AssumeRole API in the second part of the script.</p>
+<pre class="brush: powershell">
+ 
+Function ListInstances {
+    Param($Credentials, $Account, $Region)
+          
+    #List all instances in the region
+    (Get-EC2Instance -Credentials $Credentials -Region $Region).Instances |&nbsp;% {
+        If($Instance = $_) {
+  
+            #If there are instances in this region return the desired attributes
+            New-Object PSObject -Property @{
+                Account = $Account
+                Region = $Region
+                InstanceId = $Instance.InstanceId
+                Name = ($Instance.Tags | Where-Object {$_.Key -eq 'Name'}).Value
+            }
+        }
+    }
+}
+</pre>
+<p>
+ Listing 1: Windows PowerShell Function to List EC2 Instances</p>
+<p>
+ The magic happens in the second part of the script, shown in Listing 2. We know that the script is running on the new EC2 instance using the <code>CMDBApplication</code>. Remember that the only thing this role can do is call the AssumeRole API. Therefore, we should expect to see a call to AssumeRole. The Windows PowerShell cmdlet that implements AssumeRole is <code>Use-STSRole</code>.</p>
+<pre class="brush: powershell">
+#List of accounts to check
+$Accounts = @(111111111111, 222222222222, 333333333333, 444444444444)
+  
+#Iterate over each account
+$Accounts |&nbsp;% {
+    $Account = $_
+    $RoleArn = &quot;arn:aws:iam::${Account}:role/CMDBDiscovery&quot;
+  
+    #Request temporary credentials for each account and create a credential object
+    $Response = (Use-STSRole -Region $Region -RoleArn $RoleArn -RoleSessionName 'CMDB').Credentials
+    $Credentials = New-AWSCredentials -AccessKey $Response.AccessKeyId -SecretKey $Response.SecretAccessKey -SessionToken $Response.SessionToken
+  
+    #Iterate over all regions and list instances
+    Get-AWSRegion |&nbsp;% {
+        ListInstances -Credentials $Credentials -Account $Account -Region $_.Region
+    }
+  
+} | ConvertTo-Csv
+</pre>
+<p>
+ Listing 2: Windows PowerShell Script That Calls AssumeRole</p>
+<p>
+ <code>Use-STSRole</code> will retrieve temporary credentials for the IAM role specified in the ARN parameter. The ARN uses the following format, where &quot;ROLE_NAME&quot; is the role you created in &quot;TARGET_ACCOUNT_NUMBER&quot; (e.g. CMDBDiscovery).</p>
+<pre>
+arn:aws:iam::TARGET_ACCOUNT_NUMBER:role/ROLE_NAME</pre>
+<p>
+ <code>Use-STSRole</code> will return an <code>AccessKey</code>, a <code>SecretKey</code>, and a <code>SessionToken</code> that can be used to access the account specified in the role ARN. The script uses this information to create a new credential object, which it passes to <code>ListInstances</code>. <code>ListInstances </code>uses the credential object to list EC2 instances in the account specified in the role ARN.</p>
+<p>
+ That’s all there is to it. Bob creates a scheduled task that executes this script each night and sends the results to the CMDB team. When the company adds additional accounts, Bob simply adds the <code>CMDBDiscovery</code> role to the new account and updates the account list in his script.</p>
+<h2>
+ Summary</h2>
+<p>
+ Cross-account roles are a valuable tool for large customers with multiple accounts. Roles provide temporary credentials that a user or application in one account can use to access resources in another account. These temporary credentials do not need to be stored or rotated, resulting in a secure and maintainable architecture.</p>

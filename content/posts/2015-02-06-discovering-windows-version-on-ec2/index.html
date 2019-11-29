@@ -7,13 +7,16 @@ tags:
 modified_time: '2015-02-06T08:37:08.890-05:00'
 blogger_id: tag:blogger.com,1999:blog-5050074367798755574.post-7365619216113858367
 blogger_orig_url: http://blog.brianbeach.com/2015/02/discovering-windows-version-on-ec2.html
+url: /2015/02/discovering-windows-version-on-ec2.html
 ---
 
 Windows Server 2003 end of life is less than six months away.  As I start to think about upgrading, I was looking for an easy way to identify what version of Windows is running on each EC2 instance. &nbsp;I would like to do this without having to log into each instance. <br />
 <br />
 One solution is to use the System log. &nbsp;If the instance has the EC2 Config service running on it it will report the OS version (along with a few key driver versions to the console). &nbsp;You can access the System Log from the console by right clicking on an instance and choosing "View System Log". &nbsp;For example, the output below is from a Windows 2003 R2 instance I just launched. &nbsp;Notice the OSVersion on line three.<br />
 <br />
-<pre class="brush: text;">2015/02/06 11:50:30Z: AMI Origin Version: 2015.01.14
+
+{{< highlight powershell "linenos=table" >}}
+2015/02/06 11:50:30Z: AMI Origin Version: 2015.01.14
 2015/02/06 11:50:30Z: AMI Origin Name: Windows_Server-2003-R2_SP2-English-64Bit-Base
 2015/02/06 11:50:30Z: OsVersion: 5.2
 2015/02/06 11:50:30Z: OsServicePack: Service Pack 2
@@ -34,11 +37,14 @@ One solution is to use the System log. &nbsp;If the instance has the EC2 Config 
 2015/02/06 11:50:50Z: Username: Administrator
 2015/02/06 11:50:50Z: Password: <password></password>
 2015/02/06 11:50:50Z: Message: Windows is Ready to use
-</pre>
+{{< / highlight >}}
+
 <br />
 I created a script that will query the system log (also called the console) from every Windows instance in every region using PowerShell. &nbsp;It then applies a regular expression to parse the OS version number. <br />
 <br />
-<pre class="brush: powershell;">Get-EC2Region | % {
+
+{{< highlight powershell "linenos=table" >}}
+Get-EC2Region | % {
     $Region = $_.RegionName
 
     (Get-EC2Instance -Region $Region).Instances | Where-Object {$_.Platform -eq "Windows"} | % {
@@ -71,18 +77,21 @@ I created a script that will query the system log (also called the console) from
   
     }
  } | Format-Table -AutoSize -Property Region, InstanceName, InstanceId, ImageId, OSVersion, NICDriver, HBADriver                
-</pre>
+{{< / highlight >}}
+
 <br />
 You can see the sample output below. &nbsp;The last instance is Windows 2003 indicated by the version number 5.2. &nbsp;You can find a list of version numbers on <a href="https://msdn.microsoft.com/en-us/library/windows/desktop/ms724832%28v=vs.85%29.aspx">Microsoft's Web Site</a>.<br />
 <br />
-<pre class="brush: text;">Region    InstanceName       InstanceId ImageId      OSVersion  NICDriver     HBADriver  
+
+{{< highlight powershell "linenos=table" >}}
+Region    InstanceName       InstanceId ImageId      OSVersion  NICDriver     HBADriver  
 ------    ------------       ---------- -------      ---------  ---------     ---------  
 us-east-1 SERVER001          i-583480b4 ami-e49a0b8c 6.2        5.9.960.49119 6.0.2.56921
 us-east-1 SERVER002          i-da8c5236 ami-c4fe9aac 6.3        7.2.4.1       7.2.4.1    
 us-east-1 SERVER003          i-b316c842 ami-c4fe9aac 6.3        7.2.4.1       7.2.4.1    
 us-east-1 SERVER004          i-bee1715f ami-7614ac1e 6.1.7601   5.9.960.49119 6.0.2.56921
 us-east-1 SERVER005          i-01bcc8f0 ami-529be93a 5.2        5.9.960.49119 6.0.2.56921
-</pre>
+{{< / highlight >}}
 
 Now a few warnings. &nbsp;First, you must have EC2 Config installed in the instance to output information to the console. &nbsp;Second, depending on the version of EC2 config the output format is different. &nbsp;I have discovered two versions in my testing, but there may be others. &nbsp;Third, I have noticed that you cannot always distinguish the R2 version of an OS. <br />
 <br />

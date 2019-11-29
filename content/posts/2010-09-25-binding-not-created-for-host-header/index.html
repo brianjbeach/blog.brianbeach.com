@@ -10,11 +10,15 @@ modified_time: '2014-05-26T18:14:25.332-04:00'
 thumbnail: http://3.bp.blogspot.com/_ivVIMM-pq_o/TPzgQLAsyFI/AAAAAAAAABw/tt508gz80_Y/s72-c/BUG01.jpg
 blogger_id: tag:blogger.com,1999:blog-5050074367798755574.post-3370073204318030028
 blogger_orig_url: http://blog.brianbeach.com/2010/12/binding-not-created-for-host-header.html
+url: /2010/12/binding-not-created-for-host-header.html
 ---
 
 I noticed what I think is a bug (or maybe a limitation) in SharePoint 2010.  When I use PowerShell to create a Host Header Site Collection, SharePoint does not create a binding in IIS.  If I add the binding manually, everything works great, but I would expect SharePoint to do this for.  Am I missing something?<br />
 The following PowerShell script will create a new web application.  Note that I have the option to add a host header.<br />
-<pre class="brush: powershell;">Add-PSSnapin Microsoft.SharePoint.Powershell -EA 0
+
+
+{{< highlight powershell "linenos=table" >}}
+Add-PSSnapin Microsoft.SharePoint.Powershell -EA 0
 Clear-Host
 
 $WebAppURL = "http://intranet.brianbeach.com"
@@ -27,11 +31,20 @@ $AppPoolCred = Get-Credential $AppPoolUserName
 $AppPoolAccount = New-SPManagedAccount -Credential $AppPoolCred
 $AuthProvider = New-SPAuthenticationProvider
 $WebApp = New-SPWebApplication -ApplicationPool $AppPoolName -ApplicationPoolAccount $AppPoolAccount -Name $WebAppName -URL $WebAppURL -HostHeader $HostHeader -Port 80 -AuthenticationProvider $AuthProvider -DatabaseName $ContentDatabase
-</pre>
+{{< / highlight >}}
+
+
 When I run it, a new site is created in IIS and the appropriate binding is created with the host header I supplied.<br />
-<a href="http://3.bp.blogspot.com/_ivVIMM-pq_o/TPzgQLAsyFI/AAAAAAAAABw/tt508gz80_Y/s1600/BUG01.jpg" onblur="try {parent.deselectBloggerImageGracefully();} catch(e) {}"><img alt="" border="0" src="http://3.bp.blogspot.com/_ivVIMM-pq_o/TPzgQLAsyFI/AAAAAAAAABw/tt508gz80_Y/s320/BUG01.jpg" id="BLOGGER_PHOTO_ID_5547555409451862098" style="cursor: hand; cursor: pointer; display: block; height: 112px; margin: 0px auto 10px; text-align: center; width: 320px;" /></a><br />
+
+<a href="BUG01.jpg" onblur="try {parent.deselectBloggerImageGracefully();} catch(e) {}">
+<img alt="" border="0" src="BUG01.jpg" id="BLOGGER_PHOTO_ID_5547555409451862098" style="cursor: hand; cursor: pointer; display: block; margin: 0px auto 10px; text-align: center; " /></a><br />
+
+
 This next script will add a host header site collection to the web application.  According to the documentation for New-SPSite, there is no way to pass the host header.<br />
-<pre class="brush: powershell;">Add-PSSnapin Microsoft.SharePoint.Powershell -EA 0
+
+
+{{< highlight powershell "linenos=table" >}}
+Add-PSSnapin Microsoft.SharePoint.Powershell -EA 0
 Clear-Host
 
 $OwnerEmail = "administrator@brianbeach.com"
@@ -40,14 +53,24 @@ $WebAppURL = "http://intranet.brianbeach.com"
 $SiteURL = "http://wiki.brianbeach.com"
 $WebApp = Get-SPWebApplication $WebAppURL
 New-SPSite -url $SiteURL -HostHeaderWebApplication $WebApp -owneralias $OwnerAlias -ownerEmail $OwnerEmail -Template "WIKI#0"
-</pre>
+{{< / highlight >}}
+
+
 When I run this script, the site collection is created, but the binding is not created in IIS.<br />
 If I create the binding manually everything works great.<br />
-<a href="http://3.bp.blogspot.com/_ivVIMM-pq_o/TPzgZEWgTVI/AAAAAAAAAB4/6G8BKpTzOHo/s1600/BUG02.jpg" onblur="try {parent.deselectBloggerImageGracefully();} catch(e) {}"><img alt="" border="0" src="http://3.bp.blogspot.com/_ivVIMM-pq_o/TPzgZEWgTVI/AAAAAAAAAB4/6G8BKpTzOHo/s320/BUG02.jpg" id="BLOGGER_PHOTO_ID_5547555562283093330" style="cursor: hand; cursor: pointer; display: block; height: 175px; margin: 0px auto 10px; text-align: center; width: 320px;" /></a><br />
+
+<a href="BUG02.jpg" onblur="try {parent.deselectBloggerImageGracefully();} catch(e) {}">
+<img alt="" border="0" src="BUG02.jpg" id="BLOGGER_PHOTO_ID_5547555562283093330" style="cursor: hand; cursor: pointer; display: block; margin: 0px auto 10px; text-align: center; " /></a><br />
+
 NOTE: I was able to script the creation of the binding.<br />
-<pre class="brush: powershell;">Import-Module WebAdministration
+
+
+{{< highlight powershell "linenos=table" >}}
+Import-Module WebAdministration
 $WebAppName = "Intranet Web Application"
 $HostHeader = "wiki.brianbeach.com"
 New-WebBinding -Name $WebAppName -Port 80 -Protocol "http" -HostHeader $HostHeader
-</pre>
+{{< / highlight >}}
+
+
 Am I missing something?  Is there another parameter I need to pass?

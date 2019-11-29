@@ -1,4 +1,7 @@
-baseURL = "http://blog.aws.brianbeach.com.s3-website-us-east-1.amazonaws.com/"
+baseURL = "http://blog.brianbeach.com"
 languageCode = "en-us"
 title = "Brian Beach"
 theme = "ananke"
+sectionPagesMenu = "main"
+disqusShortname = "brianbeach"
+googleAnalytics = "UA-19970358-1"

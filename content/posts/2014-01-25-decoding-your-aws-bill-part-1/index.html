@@ -10,13 +10,16 @@ tags:
 modified_time: '2015-01-14T12:09:39.777-05:00'
 blogger_id: tag:blogger.com,1999:blog-5050074367798755574.post-8382438242841801980
 blogger_orig_url: http://blog.brianbeach.com/2014/01/decoding-your-aws-bill-part-1.html
+url: /2014/01/decoding-your-aws-bill-part-1.html
 ---
 
 As you begin to adopt AWS you will likely be asked to report on both usage and cost.  One way to do this is using the Monthly Billing report.  In this post I will show you how to download your bill and analyze it using PowerShell.<br />
 AWS offers a feature called Programmatic Billing Access.  When programmatic billing access is enabled, AWS periodically saves a copy of your bill to an S3 bucket.  To enable programmatic billing access click <a href="http://docs.aws.amazon.com/awsaccountbilling/latest/about/programaccess.html">here</a>. Be sure to enable the Monthly Report.<br />
 Once programmatic billing access is enabled you can download your bill using PowerShell.  The function below will download the monthly report and load it in to memory. <br />
 <br />
-<pre class="brush: powershell;"> 
+
+
+{{< highlight powershell "linenos=table" >}}
 Function Get-MonthlyReport {
     Param(
         [string][parameter(mandatory=$false)]$AccountId,
@@ -49,28 +52,71 @@ Function Get-MonthlyReport {
     #Import the file from the temp directory
     Import-Csv $FileName
 }
-</pre>
+{{< / highlight >}}
+
+
 The monthly report is a CSV file with all of the line items in the bill you receive each month.  In addition to the line items, the bill includes a few total lines.  If you have consolidated billing enabled, there is an invoice total for each account and a statement total that includes the overall total. 
 To get the total of your bill, you simply find the StatementTotal line.  For example:<br />
 <br />
-<pre class="brush: powershell;">$Report = Get-MonthlyReport
+
+
+{{< highlight powershell "linenos=table" >}}
+$Report = Get-MonthlyReport
 $Report | Where-Object {$_.RecordType -eq 'StatementTotal'}
-</pre>
+{{< / highlight >}}
+
+
 Alternatively you could sum up the PayerLineItems using Measure-Object.<br />
-<pre class="brush: powershell;">($Report | Where-Object {$_.RecordType -eq 'PayerLineItem'} | Measure-Object TotalCost -Sum ).Sum</pre>
+
+
+{{< highlight powershell "linenos=table" >}}
+($Report | Where-Object {$_.RecordType -eq 'PayerLineItem'} | Measure-Object TotalCost -Sum ).Sum
+{{< / highlight >}}
+
+
 You can also find specific line items.  For example, the following script will find the total number of on-demand instance hours.<br />
-<pre class="brush: powershell;">($Report | Where-Object {$_.UsageType -like 'BoxUsage*'} | Measure-Object UsageQuantity -Sum ).Sum</pre>
+
+
+{{< highlight powershell "linenos=table" >}}
+($Report | Where-Object {$_.UsageType -like 'BoxUsage*'} | Measure-Object UsageQuantity -Sum ).Sum
+{{< / highlight >}}
+
+
 And this line will find the total cost of the on-demand instances.<br />
-<pre>($Report | Where-Object {$_.UsageType -like 'BoxUsage*'} | Measure-Object TotalCost -Sum ).Sum</pre>
+
+
+{{< highlight powershell "linenos=table" >}}
+($Report | Where-Object {$_.UsageType -like 'BoxUsage*'} | Measure-Object TotalCost -Sum ).Sum
+{{< / highlight >}}
+
+
 These will find the usage and cost of EBS storage.<br />
-<pre class="brush: powershell;">($Report | Where-Object {$_.UsageType -like 'EBS:VolumeUsage*'} | Measure-Object UsageQuantity -Sum ).Sum
-($Report | Where-Object {$_.UsageType -like 'EBS:VolumeUsage*'} | Measure-Object TotalCost -Sum ).Sum</pre>
+
+
+{{< highlight powershell "linenos=table" >}}
+($Report | Where-Object {$_.UsageType -like 'EBS:VolumeUsage*'} | Measure-Object UsageQuantity -Sum ).Sum
+($Report | Where-Object {$_.UsageType -like 'EBS:VolumeUsage*'} | Measure-Object TotalCost -Sum ).Sum
+{{< / highlight >}}
+
+
 These will find the usage and cost of S3.<br />
-<pre class="brush: powershell;">($Report | Where-Object {$_.UsageType -like 'TimedStorage*'} | Measure-Object UsageQuantity -Sum ).Sum
-($Report | Where-Object {$_.UsageType -like 'TimedStorage*'} | Measure-Object TotalCost -Sum ).Sum</pre>
+
+
+{{< highlight powershell "linenos=table" >}}
+($Report | Where-Object {$_.UsageType -like 'TimedStorage*'} | Measure-Object UsageQuantity -Sum ).Sum
+($Report | Where-Object {$_.UsageType -like 'TimedStorage*'} | Measure-Object TotalCost -Sum ).Sum
+{{< / highlight >}}
+
+
 And this one will show you snapshots.<br />
-<pre class="brush: powershell;">($Report | Where-Object {$_.UsageType -like 'EBS:SnapshotUsage*'} | Measure-Object UsageQuantity -Sum ).Sum
-($Report | Where-Object {$_.UsageType -like 'EBS:SnapshotUsage*'} | Measure-Object TotalCost -Sum ).Sum</pre>
+
+
+{{< highlight powershell "linenos=table" >}}
+($Report | Where-Object {$_.UsageType -like 'EBS:SnapshotUsage*'} | Measure-Object UsageQuantity -Sum ).Sum
+($Report | Where-Object {$_.UsageType -like 'EBS:SnapshotUsage*'} | Measure-Object TotalCost -Sum ).Sum
+{{< / highlight >}}
+
+
 As you can see there is a lot of interesting information in your bill that you can use to report on both usage and costs.  In the <a href="http://blog.brianbeach.com/2014/08/decoding-your-aws-bill-part-2.html">next post</a> I will use cost allocation report to calculate chargebacks.<br />
 <br />
 <br />

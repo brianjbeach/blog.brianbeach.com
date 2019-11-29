@@ -9,11 +9,15 @@ tags:
 modified_time: '2014-01-20T21:11:44.815-05:00'
 blogger_id: tag:blogger.com,1999:blog-5050074367798755574.post-5234164276770561543
 blogger_orig_url: http://blog.brianbeach.com/2010/11/sharepoint-2010-powershell-anonymous.html
+url: /2010/11/sharepoint-2010-powershell-anonymous.html
 ---
 
 This is the fourth in a series of posts on scripting administrative functions in SharePoint.  I assume you have already created a farm.  In this post we will add a new anonymous web application.   If you are interested in configuring anonymous access using central administration check out: <a href="http://www.topsharepoint.com/enable-anonymous-access-in-sharepoint-2010.">http://www.topsharepoint.com/enable-anonymous-access-in-sharepoint-2010.</a><br />
 An anonymous web application will allow users to access your SharePoint site without logging in.  Let’s start by creating a new web application.  This script is similar to the last web application we created with two changes.   First, we pass AllowAnonymous flag to New-SPAuthenticationProvider.  Similarly, we add the AllowAnonymousAccess flag to New-SPWebApplication.  <i>Note that we have only enabled anonymous access at this point.  By default, new content will still require authentication unless you explicitly grant permissions to anonymous users.</i><br />
-<pre class="brush: powershell;">$WebAppURL = "http://www.brianbeach.com"
+
+
+{{< highlight powershell "linenos=table" >}}
+$WebAppURL = "http://www.brianbeach.com"
 $HostHeader = "www.brianbeach.com"
 $WebAppName = "Anonymous Web Application"
 $ContentDatabase = "Content_Anonymous_Default"
@@ -24,9 +28,15 @@ Write-Host "Creating the anonymous web application"
 $AppPoolCred = Get-Credential $AppPoolUserName
 $AppPoolAccount = New-SPManagedAccount -Credential $AppPoolCred
 $AuthProvider = New-SPAuthenticationProvider -AllowAnonymous
-$WebApp = New-SPWebApplication -AllowAnonymousAccess -ApplicationPool $AppPoolName -ApplicationPoolAccount $AppPoolAccount  -Name $WebAppName -URL $WebAppURL -HostHeader $HostHeader -Port 80 -AuthenticationProvider $AuthProvider -DatabaseName $ContentDatabase</pre>
+$WebApp = New-SPWebApplication -AllowAnonymousAccess -ApplicationPool $AppPoolName -ApplicationPoolAccount $AppPoolAccount  -Name $WebAppName -URL $WebAppURL -HostHeader $HostHeader -Port 80 -AuthenticationProvider $AuthProvider -DatabaseName $ContentDatabase
+{{< / highlight >}}
+
+
 At this point we have a new web application, but there is no content added yet.  Now, let’s add a new site collection and grant permission to anonymous users.  This script is nearly identical to the scripts we created in the prior post, with addition of AnonymousState and AnonymousPermMask.<br />
-<pre class="brush: powershell;">$SiteName = "Anonymous Root Site"
+
+
+{{< highlight powershell "linenos=table" >}}
+$SiteName = "Anonymous Root Site"
 $OwnerEmail = "USER_NAME@DOMAIN.com"
 $OwnerAlias = "DOMAIN\USER_NAME"
 $SiteURL = "http://www.brianbeach.com"
@@ -37,7 +47,10 @@ $Web = Get-SPWeb $SiteURL
 $Web.title = $SiteName
 $Web.AnonymousState = 2;
 $Web.AnonymousPermMask64 = "ViewListItems, ViewVersions, ViewFormPages, Open, ViewPages, UseClientIntegration, AddListItems"
-$Web.update() </pre>
+$Web.update() 
+{{< / highlight >}}
+
+
 <b>AnonymousState</b> determines if anonymous users have access to the site collection as follows:<br />
 <ul>
 <li>A "0" disables anonymous access.  In other words, anonymous users have no access to a Web site.</li>

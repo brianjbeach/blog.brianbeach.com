@@ -9,35 +9,69 @@ tags:
 modified_time: '2014-01-20T21:12:56.005-05:00'
 blogger_id: tag:blogger.com,1999:blog-5050074367798755574.post-4616581810675841610
 blogger_orig_url: http://blog.brianbeach.com/2010/11/sharepoint-2010-powershell-creating.html
+url: /2010/11/sharepoint-2010-powershell-creating.html
 ---
 
 I'm excited about PowerShell scripting in SharePoint 2010.  We employ strict separation of duties, and the ability to script tasks for the administrator is high on my list of anticipated features.  This is the first in a series of posts on scripting administrative functions in SharePoint.  <br />
 Let’s start by creating a new Farm.  I assume you are running these scripts on a single server with all SharePoint 2010 components installed.  If you need help creating the environment, I started with <a href="http://www.criticalpathtraining.com/Members/Pages/default.aspx">SharePoint Server 2010 RTM Virtual Machine Setup Guide (v1.6)</a> (you have to register).<br />
 First, you need to add the SharePoint snap-in.  <br />
-<pre class="brush: powershell;">Add-PSSnapin Microsoft.SharePoint.Powershell -EA 0
-Clear-Host</pre>
+
+
+{{< highlight powershell "linenos=table" >}}
+Add-PSSnapin Microsoft.SharePoint.Powershell -EA 0
+Clear-Host
+{{< / highlight >}}
+
+
 Then, you will need to create a service account in the domain that the farm will run as.  I didn’t script this, just use Active Directory Domains and Computers.  Note that there is no service called “the farm”.  The service account that you specify here will have access to the configuration and content databases and be used to run the IIS application pool that hosts central administration and a few other services.<br />
 Next, let’s set up a few variables.  You need the service account name and password you just created, and the name of the SQL Server.  In addition, you need to pick a name the configuration database and a content database that will hold the configuration for central administration.  You can name these anything you want, but they have to be unique.<br />
-<pre class="brush: powershell;">$FarmAccountName = "DOMAIN\SERVICE_ACCOUNT" 
+
+
+{{< highlight powershell "linenos=table" >}}
+$FarmAccountName = "DOMAIN\SERVICE_ACCOUNT" 
 $Passphrase = "PASSWORD"
 $DatabaseServer = "DATABASE_SERVER_NAME"
 $ConfigDatabase = "Config"
-$ContentDatabase = "Content_Admin"</pre>
+$ContentDatabase = "Content_Admin"
+{{< / highlight >}}
+
+
 Now, we can create the database.  This script will ask you to enter the password for the service account and configure the required databases.<br />
-<pre class="brush: powershell;">$FarmAccount = Get-Credential $FarmAccountName
+
+
+{{< highlight powershell "linenos=table" >}}
+$FarmAccount = Get-Credential $FarmAccountName
 $Passphrase = (ConvertTo-SecureString $Passphrase -AsPlainText -force)
-New-SPConfigurationDatabase -DatabaseServer $DatabaseServer -DatabaseName $ConfigDatabase -AdministrationContentDatabaseName $ContentDatabase -Passphrase $Passphrase -FarmCredentials $FarmAccount</pre>
+New-SPConfigurationDatabase -DatabaseServer $DatabaseServer -DatabaseName $ConfigDatabase -AdministrationContentDatabaseName $ContentDatabase -Passphrase $Passphrase -FarmCredentials $FarmAccount
+{{< / highlight >}}
+
+
 Next, we can configure the farm.  This script will install services and features.<br />
-<pre class="brush: powershell;">Initialize-SPResourceSecurity
+
+
+{{< highlight powershell "linenos=table" >}}
+Initialize-SPResourceSecurity
 Install-SPService  
-Install-SPFeature -AllExistingFeatures</pre>
+Install-SPFeature -AllExistingFeatures
+{{< / highlight >}}
+
+
 Finally, we can configure the central administration site.  This script will create a new IIS web site and application pool.  It is configured to listen to all http traffic on port 8080.  Note that you should probably use https here.  I will explore this in a later post.<br />
-<pre class="brush: powershell;">New-SPCentralAdministration -Port 8080 -WindowsAuthProvider NTLM
+
+
+{{< highlight powershell "linenos=table" >}}
+New-SPCentralAdministration -Port 8080 -WindowsAuthProvider NTLM
 Install-SPHelpCollection -All
-Install-SPApplicationContent</pre>
+Install-SPApplicationContent
+{{< / highlight >}}
+
+
 At this point you should be able to test the site.  <a href="http://locahost:8080/">http://locahost:8080</a><br />
 Here is the full script.<br />
-<pre class="brush: powershell;">Add-PSSnapin Microsoft.SharePoint.Powershell -EA 0
+
+
+{{< highlight powershell "linenos=table" >}}
+Add-PSSnapin Microsoft.SharePoint.Powershell -EA 0
 Clear-Host
 
 $FarmAccountName = "DOMAIN\SERVICE_ACCOUNT" 
@@ -59,4 +93,5 @@ Install-SPFeature -AllExistingFeatures
 Write-Host "Configuring Central Administration"
 New-SPCentralAdministration -Port 8080 -WindowsAuthProvider NTLM
 Install-SPHelpCollection -All
-Install-SPApplicationContent</pre>
+Install-SPApplicationContent
+{{< / highlight >}}

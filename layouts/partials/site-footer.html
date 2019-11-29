@@ -1,0 +1,14 @@
+<footer class="{{ .Site.Params.background_color_class | default "bg-black" }} bottom-0 w-100 pa3" role="contentinfo">
+  <div class="flex justify-between">
+    <a class="f4 fw4 hover-white no-underline white-70 dn dib-ns pv2 ph3" href="{{ .Site.BaseURL }}" >
+      &copy; {{ now.Format "2006" }} {{ .Site.Title }} 
+    </a>
+    <div>{{ partial "social-follow.html" . }}</div>
+    <div>{{ template "_internal/google_analytics.html" . }}</div>
+    <div class="white">
+      The posts on this blog are provided “as is” with no warranties, and confer no rights.<br/>
+      The opinions expressed herein are my own and do not represent those of my employer.<br/>
+      This work is licensed under a <a class="white" href="https://creativecommons.org/licenses/by/3.0/">Creative Commons Attribution 3.0</a> Unported License.
+    </div> 
+  </div>
+</footer>
