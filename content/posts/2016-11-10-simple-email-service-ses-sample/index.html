@@ -7,29 +7,36 @@ tags:
 modified_time: '2016-11-10T19:40:51.997-05:00'
 blogger_id: tag:blogger.com,1999:blog-5050074367798755574.post-723437078619723313
 blogger_orig_url: http://blog.brianbeach.com/2016/11/simple-email-service-ses-sample.html
+url: /2016/11/simple-email-service-ses-sample.html
 ---
 
 I could not find a simple example to send email using SES in Python. Turns out it is really easy. If you have a MIME formatted message you can simply call <b>send_raw_message</b>.<br />
 <br />
-<pre class="brush: text;">client = boto3.client("ses")
+
+{{< highlight python "linenos=table" >}}
+client = boto3.client("ses")
 client.send_raw_email(RawMessage = {'Data': mime_formatted_message})
-</pre>
+{{< / highlight >}}
+
 <br />
 Of course the tricky part is the MIME formatting. Turns out that is really easy in Python. Here is a simple example.<br />
 <br />
-<pre class="brush: text;">
+{{< highlight python "linenos=table" >}}
 message = MIMEText("Testing 123\nTesting 123\nTesting 123")
 message['From'] = "sender@domain.com"
 message['To'] = ["recipient1@domain.com", "recipient2@domain.com"]
 message['Date'] = formatdate(localtime=True)
 message['Subject'] = "Testing"
-</pre>
+{{< / highlight >}}
 <br />
 Then you can simply call <b>as_string() </b>and pass it to SES.<br />
 <br />
-<pre class="brush: text;">client = boto3.client("ses")
+
+{{< highlight python "linenos=table" >}}
+client = boto3.client("ses")
 response = client.send_raw_email(RawMessage = {'Data': message.as_string()})
-</pre>
+{{< / highlight >}}
+
 <br />
 I messed around for a little while and created a few helper functions to handle HTML formatting and attachments. You can find the <a href="https://github.com/brianjbeach/aws-ses-test-app/blob/master/application.py">complete code in GitHub</a>. I hope that helps someone.<br />
 <br />

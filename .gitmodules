@@ -1,3 +1,6 @@
 [submodule "themes/ananke"]
 	path = themes/ananke
 	url = https://github.com/budparr/gohugo-theme-ananke.git
+[submodule "themes/code-editor"]
+	path = themes/code-editor
+	url = https://github.com/aubm/hugo-code-editor-theme.git

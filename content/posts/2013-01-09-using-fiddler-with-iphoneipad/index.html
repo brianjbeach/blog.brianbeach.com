@@ -11,6 +11,7 @@ modified_time: '2013-01-09T17:09:51.819-05:00'
 thumbnail: http://4.bp.blogspot.com/-kGrUrNygDXA/UO3ohX_s3TI/AAAAAAAAAIc/kdSyHmYmKOY/s72-c/1.jpg
 blogger_id: tag:blogger.com,1999:blog-5050074367798755574.post-3522368562842011844
 blogger_orig_url: http://blog.brianbeach.com/2013/01/using-fiddler-with-iphoneipad.html
+url: /2013/01/using-fiddler-with-iphoneipad.html
 ---
 
 If you have ever user Fiddler to debug a web application, you know what a invaluable tool it can be.  If you have also tried to debug that application from an iPhone or iPad, you also know how difficult it can be to figure our what's going wrong from the web server logs.  Below I will explain how to configure Fiddler to proxy the iPhone/iPad.<br />
@@ -22,19 +23,33 @@ HTTP Traffic</h3>
 First, you need to enable connections from remote devices.  Start Fiddler, and choose Fiddler Options from the Tools menu.  Make note of the "Fiddler listens on port".  You will need this in the next step.  Now, select the "Allow remote computers to connect" option and click OK.  You be asked to restart Fiddler.<br />
 <br />
 <div class="separator" style="clear: both; text-align: center;">
-<a href="http://4.bp.blogspot.com/-kGrUrNygDXA/UO3ohX_s3TI/AAAAAAAAAIc/kdSyHmYmKOY/s1600/1.jpg" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" height="216" src="http://4.bp.blogspot.com/-kGrUrNygDXA/UO3ohX_s3TI/AAAAAAAAAIc/kdSyHmYmKOY/s320/1.jpg" width="320" /></a></div>
+
+<a href="1.jpg" imageanchor="1" style="margin-left: 1em; margin-right: 1em;">
+    <img border="0" src="1.jpg" /></a></div>
 <div class="separator" style="clear: both; text-align: center;">
+    
+    
 <br /></div>
 When you restart Fiddler, Windows Firewall will ask permission to allow incoming connections to Fiddler.  If you are using another firewall, you may need to configure this manually.  Also, if you're doing this at work, and your company has a centrally managed firewall, they may not allow you to make changes at all.  BTW: when you're done debugging, you should disable this option.<br />
 <br />
 <div class="separator" style="clear: both; text-align: center;">
-<a href="http://2.bp.blogspot.com/-xY5io2HteMQ/UO3ohdDRWxI/AAAAAAAAAIM/dAHd7ek_0rs/s1600/2.jpg" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" height="216" src="http://2.bp.blogspot.com/-xY5io2HteMQ/UO3ohdDRWxI/AAAAAAAAAIM/dAHd7ek_0rs/s320/2.jpg" width="320" /></a></div>
+
+
+<a href="2.jpg" imageanchor="1" style="margin-left: 1em; margin-right: 1em;">
+<img border="0" src="2.jpg"  /></a></div>
+
+
 <br />
 <br />
 Now that Fiddler is listening, you need to configure the iPhone/iPad to use the proxy server.  Go into Settings and click Wi-Fi.  Then click on the little circle with the arrow next to the active connection.  Scroll down to the bottom and change the HTTP Proxy to manual.  Now enter the IP address of your Windows box and the port that Fiddler is listening.  See the image below.  BTW: if you're using a VPN connection, you need to configure the proxy settings on the VPN configuration page.<br />
 <br />
 <div class="separator" style="clear: both; text-align: center;">
-<a href="http://4.bp.blogspot.com/-9_EhppkyvZo/UO3ohb1nOJI/AAAAAAAAAIQ/9InnqXrD244/s1600/3.jpg" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" src="http://4.bp.blogspot.com/-9_EhppkyvZo/UO3ohb1nOJI/AAAAAAAAAIQ/9InnqXrD244/s1600/3.jpg" /></a></div>
+
+
+<a href="3.jpg" imageanchor="1" style="margin-left: 1em; margin-right: 1em;">
+<img border="0" src="3.jpg" /></a></div>
+
+
 <div class="separator" style="clear: both; text-align: center;">
 <br /></div>
 Now open the browser on your device and you should see the traffic in Fiddler on your Windows box.<br />
@@ -48,12 +63,22 @@ At this point you can examine HTTP traffic, but not HTTPS.  Fiddler can be confi
 In order to see HTTPS traffic, you need to configure Fiddler to decrypt HTTPS.  You can do this by choosing Fiddler Options from the Tools menu.  Choose the HTTPS tab and ensure that "Decrypt HTTPS traffic" is enabled.  If it is already enabled, I suggest that you disable it, click the "Remove Interception Certificates", and then enable it again.  This will clean out the existing certificates and make it easier to find the new certificate in the steps below.  Before you close the options dialogue click the "Export Root Certificate to Desktop" button.<br />
 <br />
 <div class="separator" style="clear: both; text-align: center;">
-<a href="http://4.bp.blogspot.com/-_0V0tEWhWNc/UO3oh3YDVSI/AAAAAAAAAIU/AkoS1TrJSf4/s1600/4.jpg" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" height="214" src="http://4.bp.blogspot.com/-_0V0tEWhWNc/UO3oh3YDVSI/AAAAAAAAAIU/AkoS1TrJSf4/s320/4.jpg" width="320" /></a></div>
+
+
+<a href="4.jpg" imageanchor="1" style="margin-left: 1em; margin-right: 1em;">
+<img border="0" src="4.jpg"/></a></div>
+
+
 <br />
 Now you should be able to examine HTTPS URLS, but you will get a warning message similar to the one below each time you access a new URL.  If you're debugging a web application and don't mind clicking continue now and then, feel free to stop reading here.<br />
 <br />
 <div class="separator" style="clear: both; text-align: center;">
-<a href="http://2.bp.blogspot.com/-3Wy68WUvy0U/UO3oiBtpWrI/AAAAAAAAAIY/iIficbgVHYM/s1600/5.jpg" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" src="http://2.bp.blogspot.com/-3Wy68WUvy0U/UO3oiBtpWrI/AAAAAAAAAIY/iIficbgVHYM/s1600/5.jpg" /></a></div>
+
+
+<a href="5.jpg" imageanchor="1" style="margin-left: 1em; margin-right: 1em;">
+<img border="0" src="5.jpg" /></a></div>
+
+
 <br />
 <h3>
 <br /></h3>
@@ -66,7 +91,12 @@ If your debugging an app that makes web service calls, you may not have the opti
 Once you download and install it, launch the iPhone Configuration Utility.  Choose Configuration Profiles and Click New.  Configure the general options as shown below.<br />
 <br />
 <div class="separator" style="clear: both; text-align: center;">
-<a href="http://2.bp.blogspot.com/-ksUGI7AsJ3o/UO3oinJjtRI/AAAAAAAAAIk/t9VlomaDMdc/s1600/6.jpg" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" height="235" src="http://2.bp.blogspot.com/-ksUGI7AsJ3o/UO3oinJjtRI/AAAAAAAAAIk/t9VlomaDMdc/s320/6.jpg" width="320" /></a></div>
+
+
+<a href="6.jpg" imageanchor="1" style="margin-left: 1em; margin-right: 1em;">
+<img border="0" src="6.jpg" /></a></div>
+
+
 <br />
 <br />
 Now, go to the credentials tab and click Configure.  Find the certificate issued to DO_NOT_TRUST_FiddlerRoot.  If you have updated fiddler a few times, there may be more than one.  If so, open each certificate and compare the certificates serial number to the one you exported above.<br />
@@ -74,7 +104,12 @@ Now, go to the credentials tab and click Configure.  Find the certificate issued
 Now connect your device and find it in the iPhone Configuration Utility under DEVICES.  Chose the Configuration Profiles tab , and push the Install button next to the new profile you just created.  A message will appear on the device, click install (you may need to enter your pin).<br />
 <br />
 <div class="separator" style="clear: both; text-align: center;">
-<a href="http://2.bp.blogspot.com/-RuRC4KRUL2g/UO3oihSV7sI/AAAAAAAAAIg/9MAUaF2Yxk0/s1600/7.jpg" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" src="http://2.bp.blogspot.com/-RuRC4KRUL2g/UO3oihSV7sI/AAAAAAAAAIg/9MAUaF2Yxk0/s1600/7.jpg" /></a></div>
+
+
+<a href="7.jpg" imageanchor="1" style="margin-left: 1em; margin-right: 1em;">
+<img border="0" src="7.jpg" /></a></div>
+
+
 <br />
 Now you should be able to debug web applications that make AJAX calls as well as native apps.  Good luck and feel free to post questions below.<br />
 <br />

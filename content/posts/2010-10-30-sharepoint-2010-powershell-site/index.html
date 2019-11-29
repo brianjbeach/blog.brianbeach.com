@@ -9,6 +9,7 @@ tags:
 modified_time: '2014-01-20T21:12:35.661-05:00'
 blogger_id: tag:blogger.com,1999:blog-5050074367798755574.post-2302681196243063844
 blogger_orig_url: http://blog.brianbeach.com/2010/10/sharepoint-2010-powershell-site.html
+url: /2010/10/sharepoint-2010-powershell-site.html
 ---
 
 This is the third in a series of posts on scripting administrative functions in SharePoint.  I assume you have already created a farm and web application.  In this post we will add three site collections to our web application.<br />
@@ -25,7 +26,10 @@ First, let’s create a collaboration site for the HR group.  This script is alm
 <li>WIKI#0 - Wiki</li>
 <li>BLOG#0 – Blog</li>
 </ul>
-<pre class="brush: powershell;">$SiteName = "Human Resources Site"
+
+
+{{< highlight powershell "linenos=table" >}}
+$SiteName = "Human Resources Site"
 $OwnerEmail = "USER_NAME@DOMAIN.com"
 $OwnerAlias = "DOMAIN\USER_NAME"
 $SiteURL = "http://intranet.DOMAIN.com/sites/hr"
@@ -36,9 +40,14 @@ New-SPSite -Url $SiteURL -owneralias $OwnerAlias -ownerEmail $OwnerEmail -Templa
 $Web = Get-SPWeb $SiteURL
 $Web.title = $SiteName
 $Web.update()
-</pre>
+{{< / highlight >}}
+
+
 Let’s also create a blog where employees can share knowledge.  Once again, we create a new site collection.  We are concerned that we cannot predict how much content our employees will create.  Therefore, we have decided to create another content database to keep the blog data separate from the formally sanctioned content on our intranet.  There are a few additional steps required to do this.  We will need to provide a name for the new content database and provide the URL of the web application that will own the new database.  Remember that multiple site collections be assigned to a content database, but each database can only belong to one web application.  The remainder of the script is identical to the one above, except that the <b>New-SPSite</b> command takes, as an additional parameter, the name of the content database.<br />
-<pre class="brush: powershell;">$WebAppURL = "http://intranet.DOMAIN.com"
+
+
+{{< highlight powershell "linenos=table" >}}
+$WebAppURL = "http://intranet.DOMAIN.com"
 $ContentDatabase = "Content_Intranet_BLOG"
 
 Write-Host "Creating a new content database in the intranet web application"
@@ -55,10 +64,15 @@ New-SPSite -Url $SiteURL -owneralias $OwnerAlias -ownerEmail $OwnerEmail -Conten
 $Web = Get-SPWeb $SiteURL
 $Web.title = $SiteName
 $Web.update()
-</pre>
+{{< / highlight >}}
+
+
 Finally, let’s assume that the blog has been an overwhelming success (after all, social media projects within an enterprise are always successful, right?)   In response, the boss has asked us to launch a WIKI.  This is a high profile project and he wants the site to have its own URL.   If we were using central administration, we would need to create a new web application for this.  Using PowerShell, we can assign a custom URL to a Site Collection.  This is called a host header site collection and requires significantly fewer resources than a web application.  Microsoft uses this to host hundreds of different URL’s on SharePoint Online.  This script is similar to the ones we have created already with a few small changes.  Because the URL is not related to the web application URL, we need to tell SharePoint which web application to create our site collection in.  This is done by passing an additional parameter to the <b>New-SPSite</b> command.<br />
 In addition, there seems to be a bug in the API and the binding is not created for our new site in IIS.  Therefore, I have added a few additional lines to create the binding.  Note that you need to pass the name of the web application we created in the previous post.<br />
-<pre class="brush: powershell;">$SiteName = "Intranet WIKI"
+
+
+{{< highlight powershell "linenos=table" >}}
+$SiteName = "Intranet WIKI"
 $OwnerEmail = "USER_NAME@DOMAIN.com"
 $OwnerAlias = "DOMAIN\USER_NAME"
 $WebAppURL = "http://intranet.DOMAIN.com"
@@ -77,5 +91,7 @@ $HostHeader = "wiki.DOMAIN.com"
 
 Import-Module WebAdministration
 New-WebBinding -Name $WebAppName -Port 80 -Protocol "http" -HostHeader $HostHeader
-</pre>
+{{< / highlight >}}
+
+
 In the next post we will create an anonymous web application.
