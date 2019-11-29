@@ -5,7 +5,7 @@ version: 0.2
 phases:
   install:
     runtime-versions:
-        golang: 1.13
+        golang: 1.12
     commands:
       - echo Entered the install phase...
       - apt-get -qq update && apt-get -qq install curl
