@@ -4,12 +4,14 @@ version: 0.2
 
 phases:
   install:
+    runtime-versions:
+        golang: 1.13
     commands:
       - echo Entered the install phase...
-      - wget https://github.com/gohugoio/hugo/releases/download/v0.59.1/hugo_0.59.1_Linux-64bit.tar.gz
-      - tar -xvf hugo_0.59.1_Linux-64bit.tar.gz
-      - chmod 755 hugo
-      - ls -l
+      - apt-get -qq update && apt-get -qq install curl
+      - apt-get -qq install asciidoctor
+      - curl -s -L https://github.com/gohugoio/hugo/releases/download/v0.53/hugo_0.53_Linux-64bit.deb -o hugo.deb
+      - dpkg -i hugo.deb
     finally:
       - echo Installation done
   build:
