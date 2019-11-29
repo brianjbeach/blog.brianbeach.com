@@ -12,7 +12,7 @@ phases:
       # - apt-get -qq install asciidoctor
       # - curl -s -L https://github.com/gohugoio/hugo/releases/download/v0.53/hugo_0.59.1_Linux-64bit.deb -o hugo.deb
       # - dpkg -i hugo.deb
-      - sudo apt-get install hugo
+      - apt-get install hugo
       - go version
       - hugo version
     finally:
