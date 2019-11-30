@@ -8,13 +8,12 @@ phases:
         golang: 1.12
     commands:
       - echo Entered the install phase...
+      # - apt-get install hugo . # was installing an old version. I need 0.59+
       - apt-get -qq update && apt-get -qq install curl
       - apt-get -qq install asciidoctor
       - curl -s -L https://github.com/gohugoio/hugo/releases/download/v0.59.1/hugo_0.59.1_Linux-64bit.deb -o hugo.deb
       - dpkg -i hugo.deb
-      # - apt-get install hugo
-      - go version
-      - hugo version
+      - hugo env
     finally:
       - echo Installation done
 
@@ -23,7 +22,7 @@ phases:
       - echo Entered the build phase ...
       - echo Build started on `date`
       - cd $CODEBUILD_SRC_DIR
-      - hugo
+      - hugo --environment aws
     finally:
       - echo Building the HTML files finished
 artifacts:

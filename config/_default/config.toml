@@ -1,0 +1,17 @@
+baseURL = "http://blog.brianbeach.com"
+languageCode = "en-us"
+title = "Brian Beach"
+theme = "ananke"
+sectionPagesMenu = "main"
+disqusShortname = "brianbeach"
+googleAnalytics = "UA-19970358-1"
+buildFuture = true
+
+[params]
+    github = "https://github.com/brianjbeach"
+    linkedin = "https://www.linkedin.com/in/brianjbeach"
+    twitter = "https://twitter.com/brianjbeach"
+    facebook = "https://www.facebook.com/brianjbeach"
+    instagram = "https://www.instagram.com/brianjbeach"
+    youtube = "https://www.youtube.com/channel/UCQO10DnxJBiLf6aXBSb1hvA"
+    medium = "https://medium.com/@brianjbeach"

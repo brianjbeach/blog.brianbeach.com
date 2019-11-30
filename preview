@@ -1,0 +1,10 @@
+# This file will build a URL for testing in an AWS Cloud9 environment. 
+
+# Get the current region from the EC2 meta-data service
+REGION=`curl 169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//'`
+
+# Create the Cloud9 preview URL
+URL="https://$C9_PID.vfs.cloud9.$REGION.amazonaws.com/"
+
+# Start the hugo server overriding the URL and Port in config.toml 
+hugo server --baseURL=$URL --bind=0.0.0.0 --port=8080 --buildFuture
