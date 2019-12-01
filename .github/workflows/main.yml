@@ -1,0 +1,22 @@
+name: CI
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: Install
+      run: |
+        apt install golang
+        curl -s -L https://github.com/gohugoio/hugo/releases/download/v0.59.1/hugo_0.59.1_Linux-64bit.deb -o hugo.deb
+        dpkg -i hugo.deb
+        hugo env
+        
+    - name: Build
+      run: |
+        echo Add other actions to build,
+        echo test, and deploy your project.
