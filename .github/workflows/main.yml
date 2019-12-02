@@ -9,7 +9,8 @@ jobs:
   build-deploy:
     runs-on: ubuntu-18.04
     steps:
-    - uses: actions/checkout@v1
+    - name: Checkout
+      uses: actions/checkout@v1
       with:
         submodules: true
 
@@ -20,5 +21,17 @@ jobs:
         # extended: true
 
     - name: Build
-      run: hugo --minify
+      run: hugo --minify --environment aws
+
+    - name: Deploy
+      uses: jakejarvis/s3-sync-action@master
+      with:
+        args: --acl public-read --follow-symlinks --delete
+      env:
+        AWS_S3_BUCKET: 'blog.brianbeach.com'
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_REGION: 'us-east-1'   # optional: defaults to us-east-1
+        SOURCE_DIR: 'public'      # optional: defaults to entire repository
+      
 
