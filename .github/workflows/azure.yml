@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-deploy:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
     - name: Checkout
       uses: actions/checkout@v1
@@ -22,12 +22,6 @@ jobs:
 
     - name: Build
       run: hugo --environment azure
-     
-    - name: Deploy
-      uses: Azure/github-actions/storage-blob-static-website@master
-      env:
-        AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_STORAGE_ACCOUNT }}
-        SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
         
     - name: Deploy
       uses: azure/CLI@v1
