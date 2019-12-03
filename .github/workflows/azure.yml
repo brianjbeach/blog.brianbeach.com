@@ -28,3 +28,14 @@ jobs:
       env:
         AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_STORAGE_ACCOUNT }}
         SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
+        
+    - name: Deploy
+      uses: azure/CLI@v1
+      with:
+        azcliversion: latest
+        inlineScript: |
+          az storage blob sync -c '$web' --account-name 'brianbeach' -s "public" --account-name ${{ secrets.AZURE_ACCOUNT_NAME }} --account-key ${{ secrets.AZURE_ACCOUNT_KEY }}
+          
+          
+          
+          
