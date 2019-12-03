@@ -28,6 +28,7 @@ jobs:
       with:
         azcliversion: latest
         inlineScript: |
+          apk add --no-cache libc6-compat
           az storage blob sync -c '$web' -s "public" --account-name ${{ secrets.AZURE_ACCOUNT_NAME }} --account-key ${{ secrets.AZURE_ACCOUNT_KEY }}
           
           
