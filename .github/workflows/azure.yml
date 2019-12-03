@@ -28,7 +28,7 @@ jobs:
       with:
         azcliversion: latest
         inlineScript: |
-          apk add --no-cache libc6-compat
+          apk add --no-cache libc6-compat # Fixes this issue https://github.com/Azure/azure-cli/issues/10381
           az storage blob sync -c '$web' -s "public" --account-name ${{ secrets.AZURE_ACCOUNT_NAME }} --account-key ${{ secrets.AZURE_ACCOUNT_KEY }}
           
           
