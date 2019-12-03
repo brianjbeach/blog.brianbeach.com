@@ -32,7 +32,7 @@ jobs:
     - name: Deploy
       uses: azure/CLI@v1
       with:
-        azcliversion: 2.0.72
+        azcliversion: latest
         inlineScript: |
           az storage blob sync -c '$web' -s "public" --account-name ${{ secrets.AZURE_ACCOUNT_NAME }} --account-key ${{ secrets.AZURE_ACCOUNT_KEY }}
           
