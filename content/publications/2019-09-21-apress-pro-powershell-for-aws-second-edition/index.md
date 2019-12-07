@@ -3,7 +3,6 @@ layout: post
 title: "Pro PowerShell for Amazon Web Services: Second Edition"
 date: '2019-09-21'
 author: Brian
-weight: 1
 ---
 
 <img src="cover.jpg" alt="Book Cover" style="width:200px;float:left;margin:10px;">

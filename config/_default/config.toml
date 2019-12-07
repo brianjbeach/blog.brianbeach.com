@@ -6,8 +6,15 @@ sectionPagesMenu = "main"
 disqusShortname = "brianbeach"
 googleAnalytics = "UA-19970358-1"
 buildFuture = true
+enableEmoji = true
+enableGitInfo = true
+enableRobotsTXT = true
+paginate = 24
 
 [params]
+    mainSections = ["posts","presentations","publications"]
+    recent_copy = "Recent Activity"
+    recent_posts_number = 5
     github = "https://github.com/brianjbeach"
     linkedin = "https://www.linkedin.com/in/brianjbeach"
     twitter = "https://twitter.com/brianjbeach"

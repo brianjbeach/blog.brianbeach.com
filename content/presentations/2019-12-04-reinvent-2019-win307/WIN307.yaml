@@ -1,0 +1,610 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: reInvent 2019 WIN307 Manage Windows Instance at Scale
+
+Parameters:
+
+  VPCCIDR:
+    Type: String
+    Description: IP address range for the new VPC in CIDR format. If you plan to connect your VPC to campus you can work with your network team to identify an available, non-overlapping CIDR block. If you are just testing, leave the default values
+    MinLength: 9
+    MaxLength: 18
+    Default: 172.16.0.0/16
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: Must be a valid IP CIDR range of the form x.x.x.x/x.
+
+  PrivateSubnet1CIDR:
+    Type: String
+    Description: IP address range for the private subnet in the first availability zone.
+    MinLength: 9
+    MaxLength: 18
+    Default: 172.16.0.0/20
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: Must be a valid IP CIDR range of the form x.x.x.x/x.
+
+  PrivateSubnet2CIDR:
+    Type: String
+    Description: IP address range for the private subnet in the second availability zone.
+    MinLength: 9
+    MaxLength: 18
+    Default: 172.16.16.0/20
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: Must be a valid IP CIDR range of the form x.x.x.x/x.
+
+  PublicSubnet1CIDR:
+    Type: String
+    Description: IP address range for the public subnet in the first availability zone.
+    MinLength: 9
+    MaxLength: 18
+    Default: 172.16.32.0/20
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: Must be a valid IP CIDR range of the form x.x.x.x/x.
+
+  PublicSubnet2CIDR:
+    Type: String
+    Description: IP address range for the public subnet in the second availability zone.
+    MinLength: 9
+    MaxLength: 18
+    Default: 172.16.48.0/20
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: Must be a valid IP CIDR range of the form x.x.x.x/x.
+
+  MultiAZ:
+    Description: Deploying a redundant pair of NAT Gateways will ensure high availability in the event unlikely of an Availability Zone failure. If you are hosting a production workload you should enable this otherwise leave the default value.
+    Type: String
+    Default: Disabled
+    AllowedValues:
+    - Enabled
+    - Disabled
+
+  AdminPassword:
+    NoEcho: true
+    Description: The password for the Active Directory administrator. You should choose a complex password, and save it somewhere so you can find it later.
+    Type: String
+    MinLength: 8
+    MaxLength: 32
+    Default: JUt6b5Fr5nmYkIjxq4960seq1PLAiMH
+    AllowedPattern: '(?=^.{8,64}$)((?=.*\d)(?=.*[A-Z])(?=.*[a-z])|(?=.*\d)(?=.*[^A-Za-z0-9\s])(?=.*[a-z])|(?=.*[^A-Za-z0-9\s])(?=.*[A-Z])(?=.*[a-z])|(?=.*\d)(?=.*[A-Z])(?=.*[^A-Za-z0-9\s]))^.*'   
+    ConstraintDescription: Must contain only alphanumeric characters.
+
+  DirectoryType:
+    Description: Choose simple for testing and enterprise for production workloads. You cannot create trust relationships with simple directories.
+    Type: String
+    Default: Simple
+    AllowedValues:
+    - Simple
+    - Enterprise
+
+  ShortName:
+    Description: The NetBIOS name of the directory. If you plan to create a trust relationship with an existing domain, do not use the same name as the existng domain.  
+    Type: String
+    Default: example
+    MinLength: 1
+    MaxLength: 15
+
+  LongName:
+    Description: AWS fully qualified DNS name of the directory. If you plan to create a trust relationship with an existing domain, do not use the same name as the existng domain.  
+    Type: String
+    Default: example.com
+    MinLength: 1
+    MaxLength: 255
+
+  LatestAmiId:
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-windows-latest/Windows_Server-2016-English-Full-Base'
+
+Conditions:
+  CreateMAD:
+    Fn::Equals: [!Ref DirectoryType, Enterprise]
+  CreateSAD:
+    Fn::Equals: [!Ref DirectoryType, Simple]
+  EnableHANAT:
+    Fn::Equals: [!Ref MultiAZ, true]
+        
+
+Resources:
+
+Resources:
+  AutomationServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - ssm.amazonaws.com
+            - ec2.amazonaws.com
+          Action: sts:AssumeRole
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AmazonSSMAutomationRole
+      Policies:
+      - PolicyName: root
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Action: ['iam:GetRole','iam:PassRole']
+              Resource: '*'
+      Path: "/"
+      RoleName: AutomationServiceRole
+
+  ManagedInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - ec2.amazonaws.com
+          Action: sts:AssumeRole
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/AmazonSSMFullAccess
+      - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      - arn:aws:iam::aws:policy/CloudWatchFullAccess
+      - arn:aws:iam::aws:policy/CloudWatchLogsFullAccess
+      - arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess
+      Path: "/"
+      RoleName: ManagedInstanceProfile
+
+  ManagedInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties: 
+      InstanceProfileName: ManagedInstanceProfile
+      Roles: [!Ref ManagedInstanceRole]
+
+  GetWorkspaceSupportedAZsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+      ManagedPolicyArns: 
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+      - PolicyName: GetWorkspaceSupportedAZsRole
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action:
+            - ec2:DescribeReservedInstancesOfferings
+            Resource: "*"
+
+  GetWorkspaceSupportedAZs:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.lambda_handler
+      Role: !GetAtt GetWorkspaceSupportedAZsRole.Arn
+      Runtime: python2.7
+      Timeout: 30
+      Code:
+        ZipFile: !Sub |
+            import sys, boto3, urllib, urllib2, json
+
+            RIOfferMap = {
+                'ap-south-1': ['d51e0590-af34-482a-ae89-90e9910105e3', '275597dd-ab1c-4f5c-af04-2b5d0f4a57f9'],
+                'eu-west-2': ['3bd5c293-9086-4593-b0df-ad8998a8149c', '8e5a0d6b-260f-4b29-8652-ee141db94175'],
+                'eu-west-1': ['1db9e17b-2377-4bdf-a1a4-1cedc29022c2', '53e65508-c028-406d-920f-95f1e294fa56'],
+                'ap-northeast-2': ['4aa0ee56-6c2c-4dbc-8c8e-edf2847ea9b8', 'befd8ff0-2865-415b-b656-63a6e806721c'],
+                'ap-northeast-1': ['1abfddf8-d3bb-44ee-8ab2-d7c3de26fdf1', '758dc96d-0300-4fa5-81e6-2bbca5634c57'],
+                'sa-east-1': ['c0e7776f-42e5-4280-9ae0-0ab943add434', 'daca538a-e7b2-430c-b8ea-516bbd239219'],
+                'ca-central-1': ['eee145ab-d531-4625-bad8-04f00bbd5e1f', 'b0861d1b-905e-4884-b8a5-c470933dd921'],
+                'ap-southeast-1': ['a5642ae0-82f2-48ef-ad5e-faa7b5b0ab15', 'be5a3c0b-f1f4-4097-b27c-46ec92e4242d'],
+                'ap-southeast-2': ['f63d05f6-7ed5-4a41-bef6-bc4a27862b95', 'bc2d4885-0db8-48cb-b19d-9b518ee25660'],
+                'eu-central-1': ['c17b20e0-fab6-4041-9fdd-aeb9df540d60', '5b438438-850f-4d5b-9cdb-fd1c4b3b9827'],
+                'us-east-1': ['e52f3cbf-f640-46e0-aeed-daf1d070868b', 'f0be004d-7be8-4e94-a509-fe68080e7eb9'],
+                'us-east-2': ['5031ec1e-3e08-4757-a105-92211db8116a', '2c9550e1-f5b8-423f-846e-65843e07e0aa'],
+                'us-west-1': ['a29e0bc4-2ae4-434c-8a05-ce89957222f4', '29b8d724-af3a-413b-b551-114c7d319f2a'],
+                'us-west-2': ['746ad2bc-80ad-412e-8c5f-c563f806e34d', '0e1b464c-5750-4509-ac72-1fc3452e1ea9']
+            }
+
+            def lambda_handler(event, context):
+                #Log the event
+                print("Request Message -> " + json.dumps(event))
+                
+                try:
+                    type = event['RequestType']
+                    region = event['ResourceProperties']['Region']
+                    
+                    if type == 'Create' or type == 'Update':
+                        #We need a new client on each call as the region may be different
+                        client = boto3.client('ec2')
+                    
+                        #Get the well known RIs for this region
+                        response = client.describe_reserved_instances_offerings(
+                            ReservedInstancesOfferingIds=RIOfferMap[region]
+                        )
+                    
+                        zones = map(lambda offering: offering['AvailabilityZone'], response['ReservedInstancesOfferings'])
+                        responseData = {
+                            'Region':'us-east-1', 
+                            'AvailabilityZone1': zones[0],
+                            'AvailabilityZone2': zones[1],
+                        }
+                        responseStatus = 'SUCCESS'
+                    else:
+                        responseData = {}
+                        responseStatus = 'SUCCESS'
+                        
+                except:
+                    print("Error:", sys.exc_info()[0])
+                    responseStatus = 'FAILED'
+                    responseData = {}  
+
+                message = json.dumps({
+                  'Status': responseStatus,
+                  'Reason': 'See the details in CloudWatch Log Stream: ' + context.log_stream_name,
+                  'PhysicalResourceId': context.log_stream_name,
+                  'StackId': event['StackId'],
+                  'RequestId': event['RequestId'],
+                  'LogicalResourceId': event['LogicalResourceId'],
+                  'Data': responseData
+                })
+                
+                print("Response Message -> " + message)
+                print("Response URL -> " + event['ResponseURL'])
+                
+                opener = urllib2.build_opener(urllib2.HTTPHandler)
+                request = urllib2.Request(url=event['ResponseURL'], data=message)
+                request.add_header('Content-Type', '')
+                request.get_method = lambda: 'PUT'
+                url = opener.open(request)
+
+        
+        
+  AvailabilityZones: 
+    Type: Custom::AvailabilityZones
+    Properties: 
+      ServiceToken: !GetAtt GetWorkspaceSupportedAZs.Arn
+      Region: !Ref AWS::Region
+
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      CidrBlock: !Ref VPCCIDR
+      Tags:
+      - Key: Name
+        Value: !Ref AWS::StackName
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+      - Key: Name
+        Value: !Ref AWS::StackName
+
+  InternetGatewayAttach:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties: 
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC  
+
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PublicSubnet1CIDR
+      AvailabilityZone: !GetAtt AvailabilityZones.AvailabilityZone1
+      MapPublicIpOnLaunch: true
+      Tags:
+      - Key: Name
+        Value: !Sub ${AWS::StackName}-PublicSubnet1
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PublicSubnet2CIDR
+      AvailabilityZone: !GetAtt AvailabilityZones.AvailabilityZone2
+      MapPublicIpOnLaunch: true
+      Tags:
+      - Key: Name
+        Value: !Sub ${AWS::StackName}-PublicSubnet2
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Sub ${AWS::StackName}-PublicRouteTable
+      - Key: Description
+        Value: This Route Table has a default route to the Internet Gateway.   
+
+  PublicRouteTableDefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttach
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref PublicRouteTable
+        
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubnet1CIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+      - Key: Name
+        Value: !Sub ${AWS::StackName}-PrivateSubnet1
+      AvailabilityZone: !GetAtt AvailabilityZones.AvailabilityZone1
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      MapPublicIpOnLaunch: false
+      CidrBlock: !Ref PrivateSubnet2CIDR
+      Tags:
+      - Key: Name
+        Value: !Sub ${AWS::StackName}-PrivateSubnet2
+      AvailabilityZone: !GetAtt AvailabilityZones.AvailabilityZone2
+
+  PrivateSubnet1RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Sub ${AWS::StackName}-PrivateRouteTable1
+      - Key: Description
+        Value: This Route Table has a default route to the NAT Gateway
+
+  PrivateSubnet2RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Sub ${AWS::StackName}-PrivateRouteTable2
+      - Key: Description
+        Value: This Route Table has a default route to the NAT Gateway
+
+  PrivateSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet1
+      RouteTableId: !Ref PrivateSubnet1RouteTable
+
+  PrivateSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet2
+      RouteTableId: !Ref PrivateSubnet2RouteTable
+
+  PrivateSubnet1DefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttach
+    Properties:
+      RouteTableId: !Ref PrivateSubnet1RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATGateway1
+
+  PrivateSubnet2DefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttach
+    Properties:
+      RouteTableId: !Ref PrivateSubnet2RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !If [EnableHANAT, !Ref NATGateway2, !Ref NATGateway1]
+      
+  NATGateway1:
+    Type: AWS::EC2::NatGateway
+    DependsOn: InternetGatewayAttach
+    Properties:
+      AllocationId: !GetAtt NATGateway1EIP.AllocationId
+      SubnetId: !Ref PublicSubnet1
+
+  NATGateway1EIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  NATGateway2:
+    Type: AWS::EC2::NatGateway
+    Condition: EnableHANAT
+    DependsOn: InternetGatewayAttach
+    Properties:
+      AllocationId: !GetAtt NATGateway2EIP.AllocationId
+      SubnetId: !Ref PublicSubnet2
+
+  NATGateway2EIP:
+    Type: AWS::EC2::EIP
+    Condition: EnableHANAT
+    Properties:
+      Domain: vpc
+  
+  SAD:
+    Type: AWS::DirectoryService::SimpleAD
+    Condition: CreateSAD
+    Properties:
+      CreateAlias: false
+      EnableSso: false
+      Name: !Ref LongName
+      ShortName: !Ref ShortName
+      Password: !Ref AdminPassword
+      Size: Small
+      VpcSettings:
+        VpcId: !Ref VPC
+        SubnetIds: 
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+
+  MAD:
+    Type: AWS::DirectoryService::MicrosoftAD
+    Condition: CreateMAD
+    Properties:
+      CreateAlias: false
+      EnableSso: false
+      Edition: Standard
+      Name: !Ref LongName
+      ShortName: !Ref ShortName
+      Password: !Ref AdminPassword
+      VpcSettings:
+        VpcId: !Ref VPC
+        SubnetIds: 
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+
+  DHCP: 
+    Type: AWS::EC2::DHCPOptions
+    Properties: 
+      DomainName: !Ref LongName
+      DomainNameServers: !If [CreateMAD, !GetAtt MAD.DnsIpAddresses, !GetAtt SAD.DnsIpAddresses]
+      Tags: 
+      - Key: Name
+        Value: !Ref ShortName
+          
+  DHCPAssociation:
+    Type: AWS::EC2::VPCDHCPOptionsAssociation
+    Properties:
+      VpcId: !Ref VPC
+      DhcpOptionsId: !Ref DHCP
+
+  DomainJoinDocument:
+    Type: AWS::SSM::Document
+    Properties: 
+      DocumentType: Command
+      Content:
+        schemaVersion: "1.0"
+        description: "Join instances to an AWS Directory Service domain."
+        runtimeConfig: 
+          aws:domainJoin: 
+            properties: 
+              directoryId: !If [CreateMAD, !Ref MAD, !Ref SAD]
+              directoryName: !Ref LongName
+              dnsIpAddresses: !If [CreateMAD, !GetAtt MAD.DnsIpAddresses, !GetAtt SAD.DnsIpAddresses]
+
+  ELBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Limits security group egress traffic
+      VpcId:
+        Ref: VPC
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0
+
+  EC2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Limits security group egress traffic
+      VpcId:
+        Ref: VPC
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        SourceSecurityGroupId: !Ref ELBSecurityGroup
+
+  WEB01: 
+    Type: AWS::EC2::Instance
+    Properties: 
+      InstanceType: t3.large
+      ImageId: !Ref LatestAmiId
+      IamInstanceProfile: !Ref ManagedInstanceProfile
+      SubnetId: !Ref PrivateSubnet1
+      SecurityGroupIds:
+      - !Ref EC2SecurityGroup
+      Tags: 
+      - Key: "Name"
+        Value: "WEB01"
+      - Key: "Role"
+        Value: "WebServer"
+      - Key: "OperatingSystem"
+        Value: "Windows"
+      - Key: "Domain"
+        Value: "example.com"
+      UserData:
+        Fn::Base64: !Sub |
+           <powershell>
+             Install-WindowsFeature -Name WebServer -IncludeAllSubFeature
+             Add-Content c:\inetpub\wwwroot\default.aspx '<%@ Page Title="" Language="C#" Trace="true"%>'
+             del c:\inetpub\wwwroot\iisstart.htm
+           </powershell>
+
+
+  WEB02: 
+    Type: AWS::EC2::Instance
+    Properties: 
+      InstanceType: t3.large
+      ImageId: !Ref LatestAmiId
+      IamInstanceProfile: !Ref ManagedInstanceProfile
+      SubnetId: !Ref PrivateSubnet2
+      SecurityGroupIds: 
+      - !Ref EC2SecurityGroup
+      Tags: 
+      - Key: "Name"
+        Value: "WEB02"
+      - Key: "Role"
+        Value: "WebServer"
+      - Key: "OperatingSystem"
+        Value: "Windows"
+      - Key: "Domain"
+        Value: "example.com"
+      UserData:
+        Fn::Base64: !Sub |
+           <powershell>
+             Install-WindowsFeature -Name WebServer -IncludeAllSubFeature
+             Add-Content c:\inetpub\wwwroot\default.aspx '<%@ Page Title="" Language="C#" Trace="true"%>'
+             del c:\inetpub\wwwroot\iisstart.htm
+           </powershell>
+
+  MyLoadBalancer:
+    Type: AWS::ElasticLoadBalancing::LoadBalancer
+    Properties:
+      Subnets: 
+      - !Ref PublicSubnet1
+      - !Ref PublicSubnet2
+      Instances:
+      - !Ref WEB01
+      - !Ref WEB02
+      SecurityGroups:
+      - !Ref ELBSecurityGroup
+      Listeners:
+      - LoadBalancerPort: '80'
+        InstancePort: '80'
+        Protocol: HTTP
+      HealthCheck:
+        Target: HTTP:80/
+        HealthyThreshold: '3'
+        UnhealthyThreshold: '5'
+        Interval: '30'
+        Timeout: '5'
+
+Outputs:
+
+  URL:
+    Value: !Sub http://${MyLoadBalancer.DNSName}
+    Description: The URL for the LoadBalancer
+    Export:
+      Name: VPC

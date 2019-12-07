@@ -1,12 +1,18 @@
 ---
 # menu: "main"
-title: "AWS Public Sector Summit 2019"
-date: '2019-06-11'
+title: "AWS re:Invent 2019 - WIN307"
+date: '2019-12-04'
 ---
-# Microsoft SQL Server Migration Strategies
+# Manage Windows instances at scale with Systems Manager
 
-Migrating SQL Server databases to the cloud is a critical part of a cloud journey and requires planning and architectural considerations. In this session, we cover best practices and guidelines in migrating and/or architecting a hybrid SQL Server architecture on AWS. We compare and contrast various migration methods, including SQL export, backup and restore, and using AWS Database Migration Service (AWS DMS). We also provide guidance on how to migrate products that have approached their end of life, such as SQL Server 2008.
+I'll be presenting the following workshop at re:Invent 2019.
 
-https://awsdc19.smarteventscloud.com/connect/sessionDetail.ww?SESSION_ID=301024
+> Get hands-on experience managing Windows servers with AWS Systems Manager. Examples include the life cycle of an application, automating the creation and management of a “golden AMI,” domain join, application installation, patching, and collecting inventory. Experience with Windows administration and PowerShell are expected for this session. Please bring a laptop (and charger) for the hands-on exercises.
 
-https://www.slideshare.net/AmazonWebServices/microsoft-sql-server-migration-strategies
+[CloudFormation template used in the workshop](WIN307.yaml)
+
+[Workshop instructions](StepByStep.pdf)
+
+[Link to the Session Catalog](https://www.portal.reinvent.awsevents.com/connect/sessionDetail.ww?SESSION_ID=96929&csrftkn=QFIR-3WSL-6X9Z-3MUS-AH16-B776-XBHM-AN7Z)
+
+[Link to the presentation on Slideshare](http://tbd)

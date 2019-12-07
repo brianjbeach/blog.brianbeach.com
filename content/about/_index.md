@@ -23,4 +23,5 @@ North Carolina with his wife and three kids.
 [Instagram](https://www.instagram.com/brianjbeach/) \*
 [Amazon](https://www.amazon.com/-/e/B00H679Z3S) \*
 [YouTube](https://www.youtube.com/channel/UCQO10DnxJBiLf6aXBSb1hvA) \*
-[Medium](https://medium.com/@brianjbeach)
+[Medium](https://medium.com/@brianjbeach) \*
+[Reddit](https://www.reddit.com/user/brianjbeach)

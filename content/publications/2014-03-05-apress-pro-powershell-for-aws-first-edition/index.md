@@ -4,7 +4,6 @@ title: "Pro PowerShell for Amazon Web Services: First Edition"
 date: '2014-03-05'
 author: Brian
 url: /2014/01/ive-been-published.html
-weight: 1
 ---
 
 <img src="cover.jpg" alt="Book Cover" style="width:200px;float:left;margin:10px;">
