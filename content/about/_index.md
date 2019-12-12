@@ -24,4 +24,5 @@ North Carolina with his wife and three kids.
 [Amazon](https://www.amazon.com/-/e/B00H679Z3S) \*
 [YouTube](https://www.youtube.com/channel/UCQO10DnxJBiLf6aXBSb1hvA) \*
 [Medium](https://medium.com/@brianjbeach) \*
-[Reddit](https://www.reddit.com/user/brianjbeach)
+[Reddit](https://www.reddit.com/user/brianjbeach) \*
+[Meetup](https://www.meetup.com/members/147880072/)
