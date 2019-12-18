@@ -1,0 +1,33 @@
+﻿Get-EC2Region | % {
+    $Region = $_.RegionName
+
+    (Get-EC2Instance -Region $Region).Instances | Where-Object {$_.Platform -eq "Windows"} | % {
+        $Instance = $_
+        #Get the console output for each instance
+        $Console = (Get-EC2ConsoleOutput -Region $Region -InstanceId $Instance.InstanceId).Output
+        $Console = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($Console));
+
+        #Parse the console output looking for OS and Driver versions.  Note that different EC2Config versions use different formats.
+        $OSVersion1 = If($Console -match "OS: Microsoft Windows NT (?<OSLongVersion>[\d.]*)"){ $Matches['OSLongVersion'] };
+        $OSVersion2 = If($Console -match "OsVersion: (?<OSShortVersion>[\d.]*)"){ $Matches['OSShortVersion'] };
+        $OSVersion = if($OSVersion1 -ne $null) { $OSVersion1 } Else { $OSVersion2 }
+        $NICDriver1 = If($Console -match "Driver: AWS PV Network Device v(?<NICDriver>[\d.]*)"){ $Matches['NICDriver'] };
+        $NICDriver2 = If($Console -match "Driver: Citrix PV Ethernet Adapter v(?<NICDriver>[\d.]*)"){ $Matches['NICDriver'] };
+        $NICDriver = if($NICDriver1 -ne $null) { $NICDriver1 } Else { $NICDriver2 } 
+        $HBADriver1 = If($Console -match "Driver: AWS PV Storage Host Adapter v(?<HBADriver>[\d.]*)"){ $Matches['HBADriver'] }
+        $HBADriver2 = If($Console -match "Driver: Citrix PV SCSI Host Adapter v(?<HBADriver>[\d.]*)"){ $Matches['HBADriver'] }
+        $HBADriver = if($HBADriver1 -ne $null) { $HBADriver1 } Else { $HBADriver2 } 
+
+        #Add a new row to the output
+        New-Object PSObject -Property @{
+            Region = $Region
+            InstanceId = $Instance.InstanceId
+            InstanceName = ($Instance.Tags | Where-Object {$_.Key -eq "Name"}).Value
+            ImageId = $Instance.ImageId
+            OSVersion = $OSVersion
+            NICDriver = $NICDriver
+            HBADriver = $HBADriver
+        }
+  
+    }
+ } | Format-Table -AutoSize -Property Region, InstanceName, InstanceId, ImageId, OSVersion, NICDriver, HBADriver                
