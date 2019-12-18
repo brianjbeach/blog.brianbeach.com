@@ -1,0 +1,110 @@
+{
+	"AWSTemplateFormatVersion": "2010-09-09",
+	"Resources": {
+		"TaskRole": {
+			"Type": "AWS::IAM::Role",
+			"Properties": {
+				"AssumeRolePolicyDocument": {
+					"Version": "2012-10-17",
+					"Statement": {
+						"Effect": "Allow",
+						"Principal": {
+							"Service": ["ec2.amazonaws.com", "ssm.amazonaws.com"]
+						},
+						"Action": "sts:AssumeRole"
+					}
+				},
+				"ManagedPolicyArns": ["arn:aws:iam::aws:policy/AmazonSSMFullAccess"],
+				"Path": "/"
+			}
+		},
+		"InstanceRole": {
+			"Type": "AWS::IAM::Role",
+			"Properties": {
+				"AssumeRolePolicyDocument": {
+					"Version": "2012-10-17",
+					"Statement": {
+						"Effect": "Allow",
+						"Principal": {
+							"Service": ["ec2.amazonaws.com"]
+						},
+						"Action": "sts:AssumeRole"
+					}
+				},
+				"ManagedPolicyArns": ["arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM"],
+				"Policies": [
+					{
+						"PolicyName": "VSS-Snapshot",
+						"PolicyDocument": {
+							"Version": "2012-10-17",
+							"Statement": {
+								"Effect": "Allow",
+								"Action": [
+									"ec2:CreateSnapshot",
+									"ec2:DescribeInstances"
+								],
+								"Resource": "*"
+							}
+						}
+					}
+				],
+				"Path": "/"
+			}
+		},
+		"InstanceProfile": {
+			"Type": "AWS::IAM::InstanceProfile",
+			"Properties": {
+				"Path": "/",
+				"Roles": [{
+						"Ref": "InstanceRole"
+					}
+				]
+			}
+		},
+		"RunCommand": {
+			"Type": "AWS::SSM::Document",
+			"Properties": {
+				"Content": {
+					"schemaVersion": "1.2",
+					"description": "PowerShell script to create a Snapshot of all EBS Volumes on a Windows instance after first creating a Volume Shadow Copy to ensure a consistent checkpoint.",
+					"runtimeConfig": {
+						"aws:runPowerShellScript": {
+							"properties": {
+								"id": "0.aws:runPowerShellScript",
+								"timeoutSeconds": "7200",
+								"runCommand": [
+									"$TempPath = [System.IO.Path]::GetTempPath()",
+
+									"@'",
+									"$SetId=$args[0]",
+									"#Use the Meta-data API to learn what instance and region this script is running in.",
+									"$InstanceId = (Invoke-WebRequest '169.254.169.254/latest/meta-data/instance-id' -UseBasicParsing).Content",
+									"$AZ = (Invoke-WebRequest '169.254.169.254/latest/meta-data/placement/availability-zone' -UseBasicParsing).Content",
+									"$Region = $AZ.Substring(0, $AZ.Length -1)",
+									"#Find all the volumes attached to this instance and create a Snapshot of each",
+									"$Volumes = (Get-EC2Instance -Region $Region -Instance $InstanceId).Instances.BlockDeviceMappings.Ebs.VolumeId",
+									"$Volumes | %{New-EC2Snapshot -Region $Region -VolumeId $_ -Description \"Created by VSS-Snapshot; Instance=$InstanceId; VSSSetId=$SetId\"}",
+									"'@ | Set-Content (Join-Path $TempPath 'CreateEBSSnapshots.ps1')",
+
+									"\"Powershell.exe $(Join-Path $TempPath 'CreateEBSSnapshots.ps1') %1\" | Set-Content (Join-Path $TempPath 'CreateEBSSnapshots.bat')",
+
+									"'SET CONTEXT CLIENTACCESSIBLE', 'BEGIN BACKUP' + ",
+									"(Get-WmiObject Win32_Volume|%{\"ADD VOLUME $($_.Name)\"}) + ",
+									"'CREATE', \"EXEC $(Join-Path $TempPath 'CreateEBSSnapshots.bat') %VSS_SHADOW_SET%\" + ",
+									"'DELETE SHADOWS SET %VSS_SHADOW_SET%', 'END BACKUP' + ",
+									"'EXIT' | Set-Content (Join-Path $TempPath 'CreateEBSSnapshots.dsh')",
+
+									"DISKSHADOW.EXE /s (Join-Path $TempPath 'CreateEBSSnapshots.dsh')",
+
+									"Remove-Item (Join-Path $TempPath 'CreateEBSSnapshots.dsh')",
+									"Remove-Item (Join-Path $TempPath 'CreateEBSSnapshots.ps1')",
+									"Remove-Item (Join-Path $TempPath 'CreateEBSSnapshots.bat')"
+								]
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
