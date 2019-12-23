@@ -31,7 +31,7 @@ jobs:
     - name: Deploy
       uses: docker://gcr.io/cloud-builders/gsutil
       with:
-        args: rsync -R public gs://blog.brianbeach.com
+        args: -m rsync -R public gs://blog.brianbeach.com
       env:
         CLOUDSDK_CORE_PROJECT: ${{ secrets.GOOGLE_CLOUD_PROJECT_ID }}
           
