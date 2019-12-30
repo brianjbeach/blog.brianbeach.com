@@ -10,7 +10,7 @@ tags:
 ---
 
 I have been moving my blog to Hugo over the holiday weekend. I am working in 
-a Cloud9 instance. Cloud9 allows you to preview an applcation running in the 
+a Cloud9 instance. Cloud9 allows you to preview an application running in the 
 Cloud9 instance by proxying the connection through the Cloud9 service. The URL
 for the proxy uses the following format.
 
@@ -20,7 +20,7 @@ https://CLOUD9_ENV_ID.vfs.cloud9.AWS_REGION.amazonaws.com/
 
 The problem is that Hugo renders fully qualified URLs that include the 
 **baseURL** found in the config file. I could update the config file, but I
-know I am going to accidently check it in that way. 
+know I am going to accidentally check it in that way. 
 
 The hugo command line allows you to specify an alternate baseURL. So I wrote a 
 quick bash script to look up the REGION and Cloud9 environment ID. Note that I 
