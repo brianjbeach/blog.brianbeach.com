@@ -13,7 +13,7 @@ tags:
 
 I spent some time over Thanksgiving moving my blog from Blogger to Hugo. I have
 been hosting my site in an Amazon S3 bucket with an automated build in AWS 
-CodeBuild. That is been running well for the past month and I have worked out 
+CodeBuild. That has been running well for the past month and I have worked out 
 most of the kinks. So, I decided to make my blog Multi-Cloud and host it on 
 AWS, Azure, and GCP while load balancing traffic across the three platforms. 
 The footer at the bottom of each page will tell you where the page is served 
