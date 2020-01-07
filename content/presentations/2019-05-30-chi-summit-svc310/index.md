@@ -2,6 +2,7 @@
 # menu: "main"
 title: "AWS Chicago Summit 2019 - SVC311"
 date: '2019-07-11'
+csat: 4.29
 ---
 # Self-service remediation, managing configuration drift, & automation
 

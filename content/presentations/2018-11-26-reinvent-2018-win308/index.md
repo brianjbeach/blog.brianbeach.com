@@ -2,6 +2,7 @@
 # menu: "main"
 title: "AWS re:Invent 2018 - WIN308"
 date: '2018-11-16'
+csat: 3.67
 ---
 # Hands-On Automating AWS Infrastructure with PowerShell
 

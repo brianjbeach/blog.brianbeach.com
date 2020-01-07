@@ -2,6 +2,7 @@
 # menu: "main"
 title: "AWS re:Invent 2019 - WIN307"
 date: '2019-12-04'
+csat: 4.5
 ---
 # Manage Windows instances at scale with Systems Manager
 

@@ -2,6 +2,9 @@
 # menu: "main"
 title: "AWS re:Invent 2019 - ENT401"
 date: '2019-12-04'
+csat:
+- 4.0
+- 3.92
 ---
 # A life-cycle approach to governance, compliance, and audit
 

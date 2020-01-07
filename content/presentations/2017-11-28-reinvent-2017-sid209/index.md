@@ -2,6 +2,10 @@
 # menu: "main"
 title: "AWS re:Invent 2017 - SID209"
 date: '2017-11-28'
+csat: 
+- 4.31
+- 4.0
+- 4.61
 ---
 # Designing and Deploying an AWS Account Factory
 

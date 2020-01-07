@@ -2,6 +2,7 @@
 # menu: "main"
 title: "AWS re:Invent 2018 - WIN310"
 date: '2018-11-16'
+csat: 4.18
 ---
 # Building a Migration Strategy for SQL Server on AWS
 

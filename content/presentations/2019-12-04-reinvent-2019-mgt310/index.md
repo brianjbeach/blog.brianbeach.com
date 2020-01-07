@@ -2,6 +2,10 @@
 # menu: "main"
 title: "AWS re:Invent 2019 - MGT310"
 date: '2019-12-02'
+csat: 
+- 4.54
+- 4.42
+- 4.46
 ---
 # High-velocity service delivery: Infrastructure as code
 

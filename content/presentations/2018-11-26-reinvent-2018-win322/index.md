@@ -2,6 +2,7 @@
 # menu: "main"
 title: "AWS re:Invent 2018 - WIN322"
 date: '2018-11-16'
+csat: 4.04
 ---
 # Designing a Migration Strategy for Your SQL Server Infrastructure
 
