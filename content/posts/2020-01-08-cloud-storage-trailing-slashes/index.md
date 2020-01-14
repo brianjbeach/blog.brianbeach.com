@@ -20,7 +20,7 @@ Ironically this was only happening on the
 post. After some investigation, I found this caused by how various providers 
 handle a URI without a trailing slash. Specifically Azure. 
 
-## The issue
+## The Issue
 
 When I render the footer of this blog, I include the name of the cloud 
 provider that served the page. I also include a link to the post describing 
