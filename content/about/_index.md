@@ -14,6 +14,21 @@ published "Pro PowerShell for Amazon Web Services" in 2014. He is a regular
 author and has spoken at a number of events around the world. Brian lives in 
 North Carolina with his wife and three kids. ([alternates](alternate-biographies/))
 
+# Profile Pictures
+<center>
+  <a href="profile-pictures/brian-beach-casual.jpg">
+    <img alt="Casual"
+      src="profile-pictures/brian-beach-casual-thumbnail.jpg" 
+      style="display:inline; max-height:200; width: auto">
+  </a>
+  <a href="profile-pictures/brian-beach-formal.jpg">
+    <img alt="Formal"
+      src="profile-pictures/brian-beach-formal-thumbnail.jpg" 
+      style="display:inline; max-height:200; width: auto">
+  </a>
+</center>
+
+
 # Also Known As
 
 [GitHub](https://github.com/brianjbeach) \*
