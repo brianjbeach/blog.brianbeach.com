@@ -14,4 +14,4 @@ I'll be presenting the following Chalk Talk twice at re:Invent 2019.
 
 [Link to the Session Catalog](https://www.portal.reinvent.awsevents.com/connect/sessionDetail.ww?SESSION_ID=98227&csrftkn=QFIR-3WSL-6X9Z-3MUS-AH16-B776-XBHM-AN7Z)
 
-[Link to the presentation on Slideshare](http://tbd)
+[Link to the presentation](https://d1.awsstatic.com/events/reinvent/2019/REPEAT_1_A_life-cycle_approach_to_governance,_compliance,_and_audit_ENT401-R1.pdf)

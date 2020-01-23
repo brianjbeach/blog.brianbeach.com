@@ -16,4 +16,4 @@ I'll be presenting the following workshop at re:Invent 2019.
 
 [Link to the Session Catalog](https://www.portal.reinvent.awsevents.com/connect/sessionDetail.ww?SESSION_ID=96929&csrftkn=QFIR-3WSL-6X9Z-3MUS-AH16-B776-XBHM-AN7Z)
 
-[Link to the presentation on Slideshare](http://tbd)
+[Link to the presentation](https://d1.awsstatic.com/events/reinvent/2019/Manage_Windows_instances_at_scale_with_Systems_Manager_WIN307.pdf)

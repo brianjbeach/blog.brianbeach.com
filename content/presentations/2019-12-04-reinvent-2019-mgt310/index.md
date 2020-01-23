@@ -15,4 +15,4 @@ I'll be presenting the following Chalk Talk three times at re:Invent 2019.
 
 [Link to the Session Catalog](https://www.portal.reinvent.awsevents.com/connect/sessionDetail.ww?SESSION_ID=95505&csrftkn=QFIR-3WSL-6X9Z-3MUS-AH16-B776-XBHM-AN7Z)
 
-[Link to the presentation on Slideshare](http://tbd)
+[Link to the presentation](https://d1.awsstatic.com/events/reinvent/2019/REPEAT_2_High-velocity_service_delivery_Infrastructure_as_code_MGT310-R2.pdf)
