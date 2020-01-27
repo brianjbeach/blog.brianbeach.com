@@ -26,6 +26,17 @@ North Carolina with his wife and three kids. ([alternates](alternate-biographies
       src="profile-pictures/brian-beach-formal-thumbnail.jpg" 
       style="display:inline; max-height:200; width: auto">
   </a>
+  <br/>
+  <a href="profile-pictures/brian-beach-personal.jpg">
+    <img alt="Formal"
+      src="profile-pictures/brian-beach-personal-thumbnail.jpg" 
+      style="display:inline; max-height:200; width: auto">
+  </a>
+  <a href="profile-pictures/brian-beach-family.jpg">
+    <img alt="Formal"
+      src="profile-pictures/brian-beach-family-thumbnail.jpg" 
+      style="display:inline; max-height:200; width: auto">
+  </a>
 </center>
 
 
