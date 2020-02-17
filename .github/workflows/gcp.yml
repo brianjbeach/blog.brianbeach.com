@@ -9,11 +9,12 @@ jobs:
   build-deploy:
     runs-on: ubuntu-latest
     steps:
+    
     - name: Checkout
       uses: actions/checkout@v1
       with:
         submodules: true
-
+        
     - name: Install
       uses: peaceiris/actions-hugo@v2
       with:
@@ -24,14 +25,12 @@ jobs:
       run: env HUGO_ENV="production" hugo --environment gcp
         
     - name: Login
-      uses: actions/gcloud/auth@master
-      env:
-        GCLOUD_AUTH: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+      uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
+      with:
+        version: '270.0.0'
+        service_account_email: ${{ secrets.GOOGLE_SA_EMAIL }}
+        service_account_key: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
         
     - name: Deploy
-      uses: docker://gcr.io/cloud-builders/gsutil
-      with:
-        args: -m rsync -R public gs://blog.brianbeach.com
-      env:
-        CLOUDSDK_CORE_PROJECT: ${{ secrets.GOOGLE_CLOUD_PROJECT_ID }}
-          
+      run: |
+        gcloud -m rsync -R public gs://blog.brianbeach.com
