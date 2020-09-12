@@ -18,7 +18,11 @@ By the way, if you need set up a VPN on the EdgeRoute, there are instructions in
 
 ## Creating the VPN Connection
 
-Let us begin by creating a **static** VPN on the AWS Console. I specify the public IP address of my home router (203.0.113.106). I also specify the CIDR block of my home network (192.168.0.0/8) that I want to advertise to AWS. I leave all the other options with default values. 
+In this post I am going to walk through configuring the following scenario.
+
+![Network Topology](topology.png)
+
+Let us begin by creating a **static** VPN on the AWS Console. I specify the public IP address of my home router (203.0.113.106). I also specify the CIDR block of my home network (192.168.0.0/16) that I want to advertise to AWS. I leave all the other options with default values. 
 
 ![VPN with Static Routing](vpc-console-static.png)
 
@@ -31,28 +35,28 @@ Once you create the VPN, click the **Download Configuration** button, and choose
 ### IPSec Tunnel #1
 * Pre-Shared Key : AuuAi5BdMDFAVeMI1jWYn8nM2A8UadpF  
 * Outside IP Addresses:
-  - Customer Gateway : 203.0.113.106 
-  - Virtual Private Gateway	: 52.235.33.85
+  - Customer Gateway : `203.0.113.106`
+  - Virtual Private Gateway	: `52.235.33.85`
 * Inside IP Address
-  - Customer Gateway : 169.254.162.142/30
-  - Virtual Private Gateway : 169.254.162.141/30
+  - Customer Gateway : `169.254.162.142/30`
+  - Virtual Private Gateway : `169.254.162.141/30`
 * BGP Configuration Options:
-  - Customer Gateway ASN : 65000 
-  - Virtual Private  Gateway ASN : 64512
-  - Neighbor IP Address : 169.254.162.141
+  - Customer Gateway ASN : `65000`
+  - Virtual Private  Gateway ASN : `64512`
+  - Neighbor IP Address : `169.254.162.141`
   
 ### IPSec Tunnel #2
 * Pre-Shared Key : BlARnmsPSxaWficPzqmRMWk93rUFTcn  
 * Outside IP Addresses:
-  - Customer Gateway : 203.0.113.106 
-  - Virtual Private Gateway	: 34.238.247.233
+  - Customer Gateway : `203.0.113.106`
+  - Virtual Private Gateway	: `34.238.247.233`
 * Inside IP Addresses
-  - Customer Gateway : 169.254.86.178/30
-  - Virtual Private Gateway : 169.254.86.177/30
+  - Customer Gateway : `169.254.86.178/30`
+  - Virtual Private Gateway : `169.254.86.177/30`
 * BGP Configuration Options:
-  - Customer Gateway ASN : 65000 
-  - Virtual Private  Gateway ASN : 64512
-  - Neighbor IP Address : 169.254.86.177
+  - Customer Gateway ASN : `65000`
+  - Virtual Private  Gateway ASN : `64512`
+  - Neighbor IP Address : `169.254.86.177`
 
 ## Creating the USG Configuration
 
