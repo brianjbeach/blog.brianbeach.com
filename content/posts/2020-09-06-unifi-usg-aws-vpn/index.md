@@ -260,6 +260,7 @@ Note that I have configured BGP to redistribute **connected** networks. This mea
     }
 }
 ```
+
 If you choose not to run BGP, you must set up a static route to AWS. In my example, I assume that all the networks (i.e. VPCs) on the AWS side are using CIDRs from 172.16.0.0/12, and all the networks attached to my USG are using CIDRs from 192.168.0.0/16. Therefore, I am simply routing anything to 172.16.0.0/12 to the two tunnel interfaces with equal weight. Note that I configured the AWS static routing when I configured the VPN in the AWS console. See the 192.168.0.0/16 in the screenshot at the top of this post.  
 
 ``` json
@@ -280,4 +281,16 @@ If you choose not to run BGP, you must set up a static route to AWS. In my examp
     }
 }
 ```
-I have put all the pieces together on Github. You can download a template for a [static](https://github.com/brianjbeach/unifi-usg-aws-vpn/blob/master/config.gateway.static.json) or [dynamic](https://github.com/brianjbeach/unifi-usg-aws-vpn/blob/master/config.gateway.dynamic.json) VPN configuration. Just search for the **{{params}}** and replace them with the values from your confiuration file. 
+
+When running BGP, you may run into issues with asymmetric routing as mentioned by Tim Keeler in the comments below. AWS will load balance traffic between the two tunnels. Therefore, you may receive traffic on a different interface than you sent it on. In some situations, those packets will be identified as "Martian Addresses" and dropped. A Martian Address means that a packet was received on an interface that is not known to be connected to a network with that address. The USG is configured with strict filtering by default. As defined in [RFC 3704 - Ingress Filtering for Multihomed Networks](https://tools.ietf.org/html/rfc3704#section-2), `strict` means that the USG will only accept the packet if it is received on an interface that has an route to that network. When you configure static routing, you explicitly add both tunnels to the route table with equal cost. Therefore, the USG will accept traffic on either interface. However, when you configure dynamic routing, BGP will select only one route to add to the route table. In this case, if traffic is received on the interface that is not in the route table, the USG will drop the packet. 
+
+There are a bunch of ways to fix this. First, you should be able to configure BGP to add more than one route to the table just like we did with static routing. However, it seems that is [not supported on the USG](https://community.ui.com/questions/Error-on-USG-trying-to-set-BGP-maximum-paths/51d385bf-78c2-4ccd-939c-55e8565375b5). Second, if you have a Transit Gateway (TGW) configured on the AWS side, you can disable **Equal Cost Multipath (ECMP)**. *Note that is not supported with a Virtual Private Gateway (VPG).* Third, you can change the default behavior of the USG to allow Martian Addresses as shown below. Here I am changing `source-validation` from `strict` (default) to `loose`. Loose means that the USG will accept packets if the source address is in the route table for ANY interface. You can also `disable` source-validation so that the USG does not check at all. Personally, I prefer to disable ECMP on the TGW than to reduce security. Given the USG is only a 1Gpbs device, there is likely no performance gain from using ECMP anyway. Therefore, the configurations on GitHub do not change source-validation. 
+
+```
+"firewall": {
+        "source-validation": "loose"
+}
+```
+
+
+I have put all the pieces together on Github. You can download a template for a [static](https://github.com/brianjbeach/unifi-usg-aws-vpn/blob/master/config.gateway.static.json) or [dynamic](https://github.com/brianjbeach/unifi-usg-aws-vpn/blob/master/config.gateway.dynamic.json) VPN configuration. Just search for the **{{params}}** and replace them with the values from your configuration file. Then, copy the configuration to **config.gateway.json** as described in [USG Advanced Configuration](https://help.ui.com/hc/en-us/articles/215458888-UniFi-USG-Advanced-Configuration-Using-config-gateway-json).
