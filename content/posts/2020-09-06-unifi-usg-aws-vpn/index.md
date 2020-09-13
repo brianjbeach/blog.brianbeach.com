@@ -10,7 +10,7 @@ tags:
 - VPN
 ---
 
-I recently upgraded my home network from the Ubiquiti EdgeRouter to the UniFi Security Gateway (USG). Similar to the EdgeRouter, the USG supports most common configuration tasks from the web UI, but advanced configuration is only available from the command line. While you can configure a VPN tunnel to AWS from the UI, it does not allow you to configure redundancy or Borger Gateway Protocol (BGP). With everyone quarantined -- working and learning from home -- I have been struggling to find time to hack the router. So, with the holiday weekend upon us, I finally had time to dive in.
+I recently upgraded my home network from the Ubiquiti EdgeRouter to the UniFi Security Gateway (USG). Similar to the EdgeRouter, the USG supports most common configuration tasks from the web UI, but advanced configuration is only available from the command line. While you can configure a VPN tunnel to AWS from the UI, it does not allow you to configure redundancy or Border Gateway Protocol (BGP). With everyone quarantined -- working and learning from home -- I have been struggling to find time to hack the router. So, with the holiday weekend upon us, I finally had time to dive in.
 
 ![UniFi Security Gateway](usg.jpg)
 
