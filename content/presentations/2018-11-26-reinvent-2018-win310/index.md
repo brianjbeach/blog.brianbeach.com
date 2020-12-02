@@ -15,3 +15,7 @@ I'll be presenting the following workshop at re:Invent 2018.
 [CloudFormation Template](prerequisites.yaml)
 
 [Sample Schema on GitHub](https://github.com/brianjbeach/aws-database-migration-samples/tree/add-email/sqlserver/sampledb/v1)
+
+![](win301-01.jpg)
+
+![](win301-02.jpg)
