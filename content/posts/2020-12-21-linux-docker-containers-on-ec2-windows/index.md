@@ -20,7 +20,7 @@ Docker employs a client/server architecture where the server, dockerd, typical r
 
 Note that, as described  [in the Docker documentation](https://docs.docker.com/config/daemon/), you should set up mTLS to authenticate requests. I am using an VPC Security Group to control access to the Linux server from my Windows client.
 
-Assuming that dockerd is running as a daemon, we can override the default options used when calling `service docker start` by creating an `/etc/systemd/system/docker.service.d/options.conf` file to override the defaults that looks like this:
+Assuming that dockerd is running as a daemon, we can override the default options used when calling `service docker start` by creating a `/etc/systemd/system/docker.service.d/options.conf` file to override the defaults that looks like this:
 
 ```
 [Service]
@@ -56,9 +56,9 @@ This does not really matter since we are going to offload docker to the Linux se
 
 ![Docker Desktop Startup](docker-desktop-startup.png) 
 
-Now, all I have to do is set an environment  variable named **DOCKER_HOST** to tell the client where the server is running. 
+Now, all I have to do is set an environment variable named **DOCKER_HOST** to tell the client where the server is running. 
 
-![Docker Host Environment Variable](docker-host-en-var.png) 
+![Docker Host Environment Variable](docker-host-env-var.png) 
 
 Now I can run docker commands on the client and they are executed on the server.
 
