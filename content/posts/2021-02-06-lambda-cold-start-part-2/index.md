@@ -12,7 +12,7 @@ tags:
 - x-Ray
 ---
 
-In the last post, I looked at what happens the first time an ASP.NET application is invoked in Lambda. When we left off, we had a roughly 3 second initial response time. 
+In the prior post, I looked at what happens the first time an ASP.NET application is invoked in Lambda. When we left off, we had a roughly 3 second initial response time. 
 
 ![Initial Timeline](timeline-full-initial.png)
 
@@ -165,6 +165,7 @@ If we continue doing this, I get smaller and smaller gains. The table below summ
 
 Interestingly, an obvious pattern is emerging. Increasing CPU has a much bigger impact on the first Invocation time than it does on the Initialization. Increasing Memory by 16X only bought an 11% improvement in Initialization while it bought us a 95% improvement on first Invocation.
 
-## Next Steps
+## Parameter Store
 
-So, where do we go from here? I have not tried to tackle Parameter Store yet. I assume loading the params a little earlier would help just like it did for secrets. However, the Parameter Store Extension is a bit of a black box so that is going to take some research. It does seem that optimizing our code is the best way to address Initialization times, while we can pay for more CPU to improve Invocation times. 
+What about Parameter Store. I had assumed loading the parameters a little earlier would help just like it did for secrets. I have tried [updating the Parameter Store Extension to pre-fetch secrets](https://github.com/brianjbeach/aws-dotnet-extensions-configuration/tree/prefetch). However, I have not been able to show a significant improvement and have not submitted a pull request. It appears that building the ASP.NET host takes enough time that Lambda can fetch the parameters without delaying the build phase. Let me know if you find different. 
+

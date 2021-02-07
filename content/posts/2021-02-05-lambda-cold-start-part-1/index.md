@@ -12,7 +12,7 @@ tags:
 - x-Ray
 ---
 
-The ability to host an [ASP.NET project in AWS Lambda](https://github.com/aws/aws-lambda-dotnet/tree/master/Libraries/src/Amazon.Lambda.AspNetCoreServer) is a great way to get started with serverless. However, cold starts can result in a slow first invocation of the ASP.NET function. In this post I'll set up a typical, albeit simple, application to gather benchmarks.
+The ability to host an [ASP.NET project in AWS Lambda](https://github.com/aws/aws-lambda-dotnet/tree/master/Libraries/src/Amazon.Lambda.AspNetCoreServer) is a great way to get started with serverless. However, cold starts can result in a slow first invocation of the ASP.NET function. In this post I'll set up a typical, albeit simple, application to gather benchmarks. In part two, I will explore a few options to speed up initialization. 
 
 ## Background
 
