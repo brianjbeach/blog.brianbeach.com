@@ -16,6 +16,6 @@ I'll be presenting the following session at re:Invent 2021.
 
 [Link to the re:Invent 2020 catalog](https://virtual.awsevents.com/media/0_u2kqp51w)
 
-[Link to the recording](https://tbd)
+[Link to the recording](https://www.youtube.com/watch?v=EuMeijBXBFo)
 
 [Link to the presentation](https://tbd)
