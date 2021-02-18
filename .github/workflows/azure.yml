@@ -21,9 +21,9 @@ jobs:
         # extended: true
 
     - name: Build
-      run:
-      - hugo version
-      - env HUGO_ENV="production" hugo --environment azure
+      run: |
+        hugo version
+        env HUGO_ENV="production" hugo --environment azure
         
     - name: Deploy
       uses: azure/CLI@v1

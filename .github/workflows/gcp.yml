@@ -21,9 +21,9 @@ jobs:
         # extended: true
        
     - name: Build
-      run: 
-      - hugo version
-      - env HUGO_ENV="production" hugo --environment gcp
+      run: |
+        hugo version
+        env HUGO_ENV="production" hugo --environment gcp
         
     - name: Login
       uses: GoogleCloudPlatform/github-actions/setup-gcloud@master

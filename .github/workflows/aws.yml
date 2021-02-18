@@ -21,9 +21,9 @@ jobs:
         # extended: true
 
     - name: Build
-      run: 
-      - hugo version
-      - env HUGO_ENV="production" hugo --environment aws
+      run: |
+        hugo version
+        env HUGO_ENV="production" hugo --environment aws
 
     - name: Deploy
       uses: jakejarvis/s3-sync-action@master
