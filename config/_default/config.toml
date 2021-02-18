@@ -10,9 +10,12 @@ enableEmoji = true
 enableGitInfo = true
 enableRobotsTXT = true
 paginate = 24
+pygmentsOptions = "linenos=table"
+
 
 [params]
     mainSections = ["posts","presentations","publications"]
+    custom_css = ["css/custom.css"]
     recent_copy = "Recent Activity"
     recent_posts_number = 5
     github = "https://github.com/brianjbeach"
