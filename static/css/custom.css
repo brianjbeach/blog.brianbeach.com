@@ -2,3 +2,7 @@ pre code {
     font-size: small;
     padding: 0;
 }
+
+pre:hover {
+    position:absolute;
+}
