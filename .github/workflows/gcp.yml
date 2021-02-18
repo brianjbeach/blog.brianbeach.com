@@ -16,7 +16,7 @@ jobs:
         
     - name: Install
       uses: peaceiris/actions-hugo@v2
-      with:
+      # with:
         # hugo-version: '0.59.1'
         # extended: true
        
