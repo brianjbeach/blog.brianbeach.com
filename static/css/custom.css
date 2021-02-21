@@ -6,3 +6,10 @@ pre code {
 pre:hover {
     position:absolute;
 }
+
+@media screen and (max-width: 1200px) {
+    .custom-footer {
+        display: inline; 
+        text-align:center;
+    }
+}

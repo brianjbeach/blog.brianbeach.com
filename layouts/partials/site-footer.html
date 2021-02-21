@@ -1,5 +1,5 @@
 <footer class="{{ .Site.Params.background_color_class | default "bg-black" }} bottom-0 w-100 pa3" role="contentinfo">
-  <div class="flex justify-between" >
+  <div class="flex justify-between custom-footer">
     <div style="min-width:250px;">
       <a class="f4 fw4 hover-white no-underline white-70 dn dib-ns pv2 ph3" href="{{ .Site.BaseURL }}" >
         &copy; {{ now.Format "2006" }} {{ .Site.Title }} 
@@ -9,7 +9,7 @@
       {{ partial "social-follow.html" . }}
       {{ template "_internal/google_analytics.html" . }}
     </div>
-    <div class="white" style="text-align:center;">
+    <div class="white" style="text-align:center;min-width:500px;">
       You are viewing the {{ $.Site.Params.environment }} site served from {{ if $.Site.Params.cloud }}{{ $.Site.Params.cloud }}{{ else }}{{ getenv "HOSTNAME" }}{{ end }} (<a class="white" href="/posts/2019-12-30-multi-cloud-blog/">learn how?</a>).
       The posts on this blog are provided “as is” with no warranties, and confer no rights.
       The opinions expressed herein are my own and do not represent those of my employer.
