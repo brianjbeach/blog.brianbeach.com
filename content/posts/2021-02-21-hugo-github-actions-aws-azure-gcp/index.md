@@ -100,7 +100,6 @@ Azure is a little different. Rather than creating a user, I am using the access 
     - name: Deploy
       uses: azure/CLI@v1
       with:
-        azcliversion: 2.18.0 # Pined to 2.18 see https://github.com/Azure/azure-cli/issues/16872
         inlineScript: |
           az storage blob sync -c '$web' -s "public" --account-name ${{ secrets.AZURE_ACCOUNT_NAME }} --account-key ${{ secrets.AZURE_ACCOUNT_KEY }}
 ```
