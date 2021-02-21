@@ -31,4 +31,6 @@ jobs:
         
     - name: Deploy
       run: |
+        echo ${{ secrets.GOOGLE_SA_EMAIL }}
+        echo ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
         gsutil -m rsync -R public gs://blog.brianbeach.com
