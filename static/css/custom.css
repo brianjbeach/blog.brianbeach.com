@@ -7,9 +7,21 @@ pre:hover {
     position:absolute;
 }
 
+.list-of-tags {
+    column-count: 3;
+    font-size: x-large;
+}
+
+
 @media screen and (max-width: 1200px) {
+
     .custom-footer {
         display: inline; 
         text-align:center;
     }
+
+    .list-of-tags {
+        column-count: 1;
+    }
+
 }
