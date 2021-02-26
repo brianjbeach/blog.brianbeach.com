@@ -15,6 +15,9 @@ author and has spoken at a number of events around the world. Brian lives in
 North Carolina with his wife and three kids. ([alternates](alternate-biographies/))
 
 # Profile Pictures
+
+
+{{< raw-html >}}
 <center>
   <a href="profile-pictures/brian-beach-casual.jpg">
     <img alt="Casual"
@@ -26,7 +29,7 @@ North Carolina with his wife and three kids. ([alternates](alternate-biographies
       src="profile-pictures/brian-beach-formal-thumbnail.jpg" 
       style="display:inline; max-height:200; width: auto">
   </a>
-  <br/>
+  </br>
   <a href="profile-pictures/brian-beach-personal.jpg">
     <img alt="Formal"
       src="profile-pictures/brian-beach-personal-thumbnail.jpg" 
@@ -38,7 +41,7 @@ North Carolina with his wife and three kids. ([alternates](alternate-biographies
       style="display:inline; max-height:200; width: auto">
   </a>
 </center>
-
+{{< / raw-html >}}
 
 # Also Known As
 
