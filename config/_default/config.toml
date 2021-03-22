@@ -1,4 +1,4 @@
-baseURL = "http://blog.brianbeach.com"
+baseURL = "https://blog.brianbeach.com"
 languageCode = "en-us"
 title = "Brian Beach"
 theme = "ananke"

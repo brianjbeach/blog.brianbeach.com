@@ -1,5 +1,0 @@
-baseURL = "http://staging.brianbeach.com"
-
-[params]
-    cloud = "Amazon Web Services"
-    environment = "staging"
