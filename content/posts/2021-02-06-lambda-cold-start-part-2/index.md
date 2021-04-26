@@ -12,7 +12,7 @@ tags:
 - x-Ray
 ---
 
-In the prior post, I looked at what happens the first time an ASP.NET application is invoked in Lambda. When we left off, we had a roughly 3 second initial response time. 
+In [part one](/posts/2021-02-05-lambda-cold-start-part-1/), I looked at what happens the first time an ASP.NET application is invoked in Lambda. When we left off, we had a roughly 3 second initial response time. In this post I'll focus on the initialization phase and [part three](/posts/2021-04-24-lambda-cold-start-part-3/) will focus on invocation. 
 
 ![Initial Timeline](timeline-full-initial.png)
 

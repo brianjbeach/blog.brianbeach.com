@@ -11,11 +11,13 @@ tags:
 - GitHub Actions
 ---
 
+I'm abandoning the multi-cloud blog hosting model that I was using in favor of AWS Amplify to simplify TLS configuration. But I thought I should document the old approach a little further in case I ever go back to it. 
+
 The build pipeline for my blog fails every once in a while. For example, there was an [issue with the Azure CLI](https://github.com/Azure/azure-cli/issues/16872) earlier this month. Each time that happens it takes me a few minutes to remember how the pipeline works. Therefore, I am documenting it quickly in this post. 
 
 ## Build
 
-As I described in [this post]({{< ref "2019-12-30-multi-cloud-blog" >}}), my blog is hosted on AWS, Azure and GCP. There is a [GitHub Action that runs for each cloud provider ](https://github.com/brianjbeach/blog.brianbeach.com/tree/master/.github/workflows). Each script starts with the same three steps Checkout, Install, and Build. 
+As I described in [this post]({{< ref "2019-12-30-multi-cloud-blog" >}}), my blog was hosted on AWS, Azure and GCP. There is a [GitHub Action that runs for each cloud provider ](https://github.com/brianjbeach/blog.brianbeach.com/tree/master/.github/workflows). Each script starts with the same three steps Checkout, Install, and Build. 
 
 ``` yaml
 jobs:
