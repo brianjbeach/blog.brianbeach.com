@@ -1,0 +1,199 @@
+---
+
+Parameters:
+
+  VPC: 
+    Type: AWS::EC2::VPC::Id
+    Default: vpc-79c6451c
+  
+  Subnets: 
+    Type: List<AWS::EC2::Subnet::Id>
+    Default: "subnet-d28b488b,subnet-04ca292f"
+    
+Resources:
+
+  ########################################
+  ###          ACTIVE DIRECTORY        ###
+  ########################################
+
+  ActiveDirectoryAdminPassword:
+    Type: 'AWS::SecretsManager::Secret'
+    Properties:
+      Name: ActiveDirectoryAdminPassword
+      GenerateSecretString:
+        SecretStringTemplate: '{"username": "Admin"}'
+        GenerateStringKey: "password"
+        PasswordLength: 16
+
+  ActiveDirectory:
+    Type: AWS::DirectoryService::MicrosoftAD
+    DependsOn:
+      - ActiveDirectoryAdminPassword
+    Properties: 
+      ShortName: example
+      Name: example.local
+      Edition: Standard
+      Password: '{{resolve:secretsmanager:ActiveDirectoryAdminPassword:SecretString:password}}'
+      VpcSettings: 
+          VpcId: !Ref VPC
+          SubnetIds: !Ref Subnets
+
+  ########################################
+  ###             SQL SERVER           ###
+  ########################################
+
+  SQLServerAdminPassword:
+    Type: 'AWS::SecretsManager::Secret'
+    Properties:
+      Name: SQLServerAdminPassword
+      GenerateSecretString:
+        SecretStringTemplate: '{"username": "sqladmin"}'
+        GenerateStringKey: "password"
+        PasswordLength: 16
+        ExcludeCharacters: '/@"'
+
+  SQLServerRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - rds.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonRDSDirectoryServiceAccess
+
+  SQLServer:
+    Type: 'AWS::RDS::DBInstance'
+    DependsOn:
+      - SQLServerAdminPassword
+    Properties:
+      DBInstanceIdentifier: demodb
+      Domain: !Ref ActiveDirectory
+      DomainIAMRoleName: !Ref SQLServerRole
+      DBInstanceClass: db.t3.small
+      AllocatedStorage: '20'
+      Engine: sqlserver-ex
+      MasterUsername: '{{resolve:secretsmanager:SQLServerAdminPassword:SecretString:username}}'
+      MasterUserPassword: '{{resolve:secretsmanager:SQLServerAdminPassword:SecretString:password}}'
+
+  ########################################
+  ###       SEAMLESS DOMAIN JOIN       ###
+  ########################################
+
+  SeamlessDomainJoinSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub aws/directory-services/${ActiveDirectory}/seamless-domain-join
+      Description: !Sub Credentials used by Seamless Domain Join for Linux to the ${ActiveDirectory} Directory Services Domain
+      GenerateSecretString:
+        GenerateStringKey: "awsSeamlessDomainPassword"
+        SecretStringTemplate: !Sub | 
+          {
+            "awsSeamlessDomainDirectoryId": "${ActiveDirectory}",
+            "awsSeamlessDomainUsername": "SeamlessDomainJoinServiceAccount"
+          }
+
+  SeamlessDomainJoinSecretRotationSchedule:
+    Type: AWS::SecretsManager::RotationSchedule
+    Properties:
+      SecretId: !Ref SeamlessDomainJoinSecret
+      RotationLambdaARN: !GetAtt RotateSecretFunction.Arn
+      RotationRules:
+        AutomaticallyAfterDays: 30
+
+  SeamlessDomainJoinRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: !Sub Allows a Linux instance to Seamlessly Join the ${ActiveDirectory} Directory Services Domain
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+              - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/AmazonSSMDirectoryServiceAccess
+      Policies:
+        - PolicyName: GetCredentialsFromSecretsManager
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: 
+                  - secretsmanager:GetSecretValue
+                  - secretsmanager:DescribeSecret
+                Resource: !Ref SeamlessDomainJoinSecret
+  
+  SeamlessDomainJoinProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref SeamlessDomainJoinRole
+
+  RotateSecretRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: !Sub Allows Lambda to rotate Secrets Manager secrets for Seamless Domain Join for Linux to the ${ActiveDirectory} Directory Services Domain
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+              - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: RotateCredentials
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+            - Effect: Allow
+              Action: 
+                - secretsmanager:DescribeSecret
+                - secretsmanager:GetSecretValue
+                - secretsmanager:PutSecretValue
+                - secretsmanager:UpdateSecretVersionStage
+              Resource: !Ref SeamlessDomainJoinSecret
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetRandomPassword
+              Resource: '*'
+            - Effect: Allow
+              Action: 
+                - ds:ResetUserPassword
+              Resource: !Sub arn:aws:ds:${AWS::Region}:${AWS::AccountId}:directory/${ActiveDirectory}
+
+  RotateSecretPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt RotateSecretFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: secretsmanager.amazonaws.com
+
+  RotateSecretFunction: 
+    Type: AWS::Lambda::Function
+    Properties: 
+      Description: !Sub Rotate Secrets Manager secrets for Seamless Domain Join for Linux to the ${ActiveDirectory} Directory Services Domain
+      Runtime: python3.8
+      Handler: lambda_function.lambda_handler
+      Role: !GetAtt  RotateSecretRole.Arn
+      Code:
+        S3Bucket: beabrian-public
+        S3Key: seamless-domain-join-with-rotation.zip
+      Environment:
+        Variables:
+          DICT_KEY_DIRECTORY: awsSeamlessDomainDirectoryId
+          DICT_KEY_USERNAME: awsSeamlessDomainUsername
+          DICT_KEY_PASSWORD: awsSeamlessDomainPassword
