@@ -85,4 +85,4 @@ Note that this step requires a plugin to JMeter. However it is optional. You can
 
 **Summary Report** and **View Results Tree** simply export test results in different formats. These are optional and cen be eliminate or replaced with another Listener if you prefer. 
 
-Overall this seems to meet my goals. It's not perfect -- some queries are delayed a few seconds -- but over the course of a day that should not matter much. If you have a better way, please add it in the comments. If you would like, you can download [my test plan](redshift-test-plan.jmx).
+Overall this seems to meet my goals. It's not perfect -- some queries are delayed a few seconds -- but over the course of a day that should not matter much. If you have a better way, please add it in the comments. If you would like, you can download [my test plan](redshift-test-plan.jmx) or [this version without the plugin](redshift-test-plan-without-plugin.jmx).
