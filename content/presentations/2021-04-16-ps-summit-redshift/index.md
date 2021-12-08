@@ -1,6 +1,6 @@
 ---
 # menu: "main"
-title: "Public Sector Summit 2021"
+title: "AWS Public Sector Summit 2021"
 date: '2021-04-21'
 ---
 
