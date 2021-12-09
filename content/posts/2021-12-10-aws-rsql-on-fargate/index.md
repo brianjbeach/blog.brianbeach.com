@@ -1,6 +1,6 @@
 ---
 layout: post
-title: Running Redshift RSQL is a Fargate container
+title: Running Redshift RSQL is a Fargate Container
 date: '2021-12-10'
 author: Brian
 tags: 
