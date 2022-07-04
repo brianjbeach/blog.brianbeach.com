@@ -1,8 +1,9 @@
 ---
 # menu: "main"
-title: "AWS SFO Summit- MAD201"
+title: "AWS San Francisco Summit- MAD201"
 date: '2022-04-20'
 csat: 4.13
+speaker-csat: 4.5
 ---
 
 # Best practices for continuous testing and observability

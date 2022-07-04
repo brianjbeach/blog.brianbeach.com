@@ -2,7 +2,8 @@
 # menu: "main"
 title: "AWS re:Invent 2021 - DOP306"
 date: '2021-12-01'
-csat: 4.33
+csat: 4.0
+speaker-csat: 4.33
 ---
 
 # Implementing release management strategies for CI/CD Pipelines Workshop

@@ -1,8 +1,9 @@
 ---
 # menu: "main"
-title: "AWS SFO Summit- DEM308"
+title: "AWS San Francisco Summit- DEM308"
 date: '2022-04-21'
-csat: NA
+csat: 5.0
+speaker-csat: 5.0
 ---
 
 # Accelerate frontend web and mobile development with AWS Amplify
