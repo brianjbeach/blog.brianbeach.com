@@ -83,7 +83,8 @@ We flew home from Madrid, and spent two nights exploring the city. Graffiti was 
 
 ## Las Vegas (November )
 
-The AWS Summits are long over and there is only one more event on the Calendar. re:Invent 2022 in Las Vegas later this month. I'll drop by the Fashion Show Mall to visit what I assume to be the last location of the tour. And, of course, I'll add a picture when I do. 
+The last event of 2022 was re:Invent in Las Vegas. Of course I dropped by the Fashion Show Mall to visit the last location of the tour. 
 
+![Las Vegas](LasVegas.jpeg)
 
 I love you Emily!
