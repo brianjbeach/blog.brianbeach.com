@@ -1,0 +1,28 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Start Hugo",
+        "type": "shell",
+        "isBackground": true,
+        "command": "hugo serve -D",
+        "problemMatcher": [
+            {
+              "pattern": [
+                {
+                  "regexp": ".",
+                  "file": 1,
+                  "location": 2,
+                  "message": 3
+                }
+              ],
+              "background": {
+                "activeOnStart": true,
+                "beginsPattern": ".",
+                "endsPattern": ".",
+              }
+            }
+          ]
+      }
+    ]
+  }
