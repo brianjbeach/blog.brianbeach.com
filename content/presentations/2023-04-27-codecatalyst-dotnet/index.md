@@ -1,6 +1,6 @@
 ---
 # menu: "main"
-title: "PowerShell Summit - A Complete DevOps Experience for .NET and PowerShell with AWS CodeCatalyst "
+title: "PowerShell Summit 2023 - A Complete DevOps Experience for .NET and PowerShell with AWS CodeCatalyst "
 date: '2023-04-27'
 csat: tbd
 ---
