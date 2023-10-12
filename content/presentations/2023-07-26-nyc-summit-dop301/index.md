@@ -1,7 +1,7 @@
 ---
 # menu: "main"
-title: "Toronto Summit 2023 - DOP301 Tips and tricks for coding with a generative AI coding companion"
-date: '2023-06-14'
+title: "New York Summit 2023 - DOP301 Tips and tricks for coding with a generative AI coding companion"
+date: '2023-07-26'
 csat: 5.00
 ---
 

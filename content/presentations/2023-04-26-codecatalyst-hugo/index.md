@@ -14,3 +14,5 @@ You’ve built and deployed your first app on Amazon CodeCatalyst – great! But
 ![studio](studio1.jpeg)
 
 ![studio](studio2.jpeg)
+
+![presenters](presenters.jpeg)
