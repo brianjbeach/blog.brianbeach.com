@@ -2,7 +2,10 @@
 # menu: "main"
 title: "AWS Innovate Europe"
 date: '2023-10-19'
-csat: tbd
+csat: 4.72
+speaker-csat: 4.75
+attendees: 574 
+responses: 118
 ---
 
 ## Your AI Assistant: Boost dev with Amazon CodeWhisperer
