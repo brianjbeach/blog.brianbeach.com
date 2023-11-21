@@ -2,7 +2,8 @@
 # menu: "main"
 title: "PASS Data Summit 2023"
 date: '2023-11-15'
-csat: tbd
+csat: 4.84
+speaker-csat: 4.95
 ---
 
 ## Using Generative AI to Accelerate SQL Development
