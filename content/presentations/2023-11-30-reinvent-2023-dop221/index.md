@@ -1,0 +1,14 @@
+---
+title: "re:Invent 2023 - DOP221"
+date: '2023-11-30'
+csat: tbd
+speaker-csat: tbd
+---
+
+## DOP221 | Amazon CodeCatalyst in real time: Deploying to production in minutes
+
+In this follow-up demonstration to DOP210, see how you can use an Amazon CodeCatalyst blueprint to build a production-ready application that is set up for long-term success. See in real time how to create a project using a CodeCatalyst Dev Environment and deploy it to production using a CodeCatalyst workflow.
+
+![front](front.jpg)
+
+![side](side.jpg)
