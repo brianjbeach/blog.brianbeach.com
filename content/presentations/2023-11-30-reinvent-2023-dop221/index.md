@@ -1,8 +1,9 @@
 ---
 title: "re:Invent 2023 - DOP221"
 date: '2023-11-30'
-csat: tbd
-speaker-csat: tbd
+csat: 4.67
+speaker-csat: 4.67
+responses: 3
 ---
 
 ## DOP221 | Amazon CodeCatalyst in real time: Deploying to production in minutes

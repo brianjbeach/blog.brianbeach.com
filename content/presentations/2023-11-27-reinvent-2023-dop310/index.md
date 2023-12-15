@@ -1,8 +1,9 @@
 ---
 title: "re:Invent 2023 - DOP310"
 date: '2023-11-27'
-csat: tbd
-speaker-csat: tbd
+csat: 4.44
+speaker-csat: 4.56
+responses: 27
 ---
 
 ## DOP310 | Better together: GitHub Actions, Amazon CodeCatalyst, or AWS CodeBuild 
