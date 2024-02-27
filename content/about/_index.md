@@ -7,7 +7,7 @@ description: "A little more about me."
 
 # Biography 
 
-Brian Beach has over 25 years of experience as a Developer and Architect. He leads the Builder Experience Community at Amazon Web Services promoting DevOps and Infrastructure as Code. He holds a Computer Engineering degree from NYU Poly and an MBA from Rutgers Business School. He is the author of “Pro PowerShell for Amazon Web Services” from Apress. He is a regular author and has spoken at numerous events. Brian lives in North Carolina with his wife and three kids. ([alternates](alternate-biographies/))
+Brian Beach has over 25 years of experience as a developer and architect. He leads the NextGen Developer Experience Community at Amazon Web Services leveraging infrastructure-as-code, DevOps, and generative AI to boost developer productivity. He holds a Computer Engineering degree from NYU Poly and an MBA from Rutgers Business School. He is the author of “Pro PowerShell for Amazon Web Services” from Apress. He is a regular author and has spoken at numerous events. Brian lives in North Carolina with his wife and three kids. 
 
 # Profile Pictures
 
