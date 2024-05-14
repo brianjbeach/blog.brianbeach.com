@@ -3,9 +3,7 @@ pre code {
     padding: 0;
 }
 
-pre:hover {
-    position:absolute;
-}
+
 
 .list-of-tags {
     column-count: 3;
