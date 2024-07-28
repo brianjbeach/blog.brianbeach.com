@@ -1,0 +1,34 @@
+yamlschemaVersion: 2.0.0
+metadata:
+  name: hugo
+  version: 1.0.1
+  displayName: Hugo
+  description: Hugo Static Site Generator
+  tags: ["aws", "al2"]
+  projectType: "aws"
+components:
+  - name: aws-runtime
+    container:
+      image: public.ecr.aws/aws-mde/universal-image:latest
+      mountSources: true
+      volumeMounts:
+        - name: docker-store
+          path: /var/lib/docker
+  - name: docker-store
+    volume:
+      size: 16Gi
+commands:
+  - id: download-hugo
+    exec:
+      component: aws-runtime
+      commandLine: "wget https://github.com/gohugoio/hugo/releases/download/v0.129.0/hugo_extended_0.129.0_Linux-64bit.tar.gz -O hugo.tar.gz"
+      workingDir: /tmp
+  - id: install-hugo
+    exec:
+      component: aws-runtime
+      commandLine: "sudo tar -xvzf hugo.tar.gz -C /usr/local/bin"
+      workingDir: /tmp
+events:
+  postStart:
+    - download-hugo
+    - install-hugo
