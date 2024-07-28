@@ -1,0 +1,17 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+      - wget https://github.com/gohugoio/hugo/releases/download/v0.129.0/hugo_extended_0.129.0_Linux-64bit.tar.gz -O /tmp/hugo.tar.gz
+      - sudo tar -xvzf /tmp/hugo.tar.gz -C /usr/local/bin
+    build:
+      commands: 
+      - env HUGO_ENV="production" hugo
+  artifacts:
+    # IMPORTANT - Please verify your build output directory
+    baseDirectory: public
+    files:
+      - '**/*'
+  cache:
+    paths: []
