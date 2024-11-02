@@ -14,6 +14,12 @@ Brian Beach has over 25 years of experience as a developer and architect. He lea
 
 {{< raw-html >}}
 <center>
+  <a href="profile-pictures/brian-beach-default.jpg">
+    <img alt="Casual"
+      src="profile-pictures/brian-beach-default-thumbnail.jpg" 
+      style="display:inline; max-height:200; width: auto">
+  </a>
+  </br>
   <a href="profile-pictures/brian-beach-casual.jpg">
     <img alt="Casual"
       src="profile-pictures/brian-beach-casual-thumbnail.jpg" 
