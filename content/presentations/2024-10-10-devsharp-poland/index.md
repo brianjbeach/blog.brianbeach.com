@@ -1,8 +1,17 @@
 ---
-title: "re:Inforce 2024: APS231"
-date: '2024-06-11'
+title: "S&P Global Dev#"
+date: '2024-10-10'
 ---
 
-## Strengthen security throughout the SDLC with generative AI
+## S&P Global Dev#  
 
-Amazon Q, powered by generative AI and trained on over 17 years of AWS experience, can be your expert assistant in strengthening security across the software development lifecycle (SDLC). This session explores how Amazon Q can assist with threat modeling, secure coding practices, security scanning, remediation, and more. Get ready to delve into an interactive discussion on leveraging Amazon Q's capabilities to fortify your security posture.
+I presnted at S&P Global's Dev# conference in GDansk Poland  
+
+> We would like to invite you to the premier technology event organized by S&P Global, the Dev# Conference, where innovation meets expertise. Join us for a day, on October 10th, filled with insightful sessions and engaging discussions led by distinguished speakers from Google, Microsoft, Amazon Web Services (AWS), theBlue.ai and Niebezpiecznik.pl. 
+
+![Event poster](poster.png)
+![Title slide](title.jpeg)
+![GenAI Slide](genai.jpeg)
+![Code demo](code.png)
+![Room](room.jpeg)
+![Gdansk Poland](gdansk.jpeg)
