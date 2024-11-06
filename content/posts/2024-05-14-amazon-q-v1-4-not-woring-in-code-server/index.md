@@ -7,7 +7,7 @@ tags:
 - Amazon Q Developer
 ---
 
-NOTE: This issue was resolved on May 15th 2024. 
+NOTE: This issue was resolved on May 17th 2024. 
 
 ~~There is an issue with the sign-in flow in the v1.4 of the Amazon Q Developer extension release last night. This only impacts Code Server used in the workshop and does not impact the desktop version.~~
 
