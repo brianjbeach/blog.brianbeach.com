@@ -1,7 +1,7 @@
 ---
 # menu: "main"
 title: "About"
-featured_image: '/images/lakes-of-killarney-1440.jpg'
+featured_image: '/images/aws-reinvent-2024.jpg'
 description: "A little more about me."
 ---
 
